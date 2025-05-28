@@ -1,0 +1,27 @@
+name: Sync to VPS
+
+env:
+  PHP_VERSION: 8.1
+  COMPOSER_VERSION: 2.1
+
+on:
+  push:
+    branches:
+      - main  # Puedes configura r para que solo se ejecute al hacer push a la rama principal (o la que prefieras)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: sync files to vps
+      env:
+        SSHPASS: ${{ secrets.SSH_PASSWORD }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sshpass rsync
+
+        sshpass -p "$SSHPASS" rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./Markdown2Video/ root@161.132.48.175:/var/www/html/Markdown2Video/

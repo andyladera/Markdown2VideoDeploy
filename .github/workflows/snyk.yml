@@ -1,0 +1,29 @@
+# .github/workflows/snyk-analysis.yml
+name: Snyk Security Scan
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+
+    - name: Instalar dependencias PHP
+      run: |
+        cd Markdown2Video
+        composer install --no-progress --no-suggest
+
+    - name: Ejecutar Snyk análisis
+      uses: snyk/actions/php@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --file=Markdown2Video/composer.lock --project-name=Markdown2Video
+
