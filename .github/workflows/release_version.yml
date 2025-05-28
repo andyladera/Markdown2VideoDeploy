@@ -22,7 +22,7 @@ jobs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ env.PHP_VERSION }}
-        extensions: mbstring, xml, curl  # Agregar las extensiones necesarias para tu proyecto
+        extensions: mbstring, xml, curl  # Agregarlas extensiones necesarias para tu proyecto
 
     - name: Install Composer
       run: |
