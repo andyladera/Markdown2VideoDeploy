@@ -54,7 +54,7 @@ jobs:
         mkdir release
         zip -r release/project-${GITHUB_SHA}.zip .  # O el tipo de archivo que prefieras como release
 
-    - name: Create Git tag  # Estepaso de be estar alineado correctamente
+    - name: Create Git tag  # Estepaso debe estar alineado correctamente
       run: |
         cd Markdown2Video
         VERSION=$(jq -r .version < composer.json)  # Ahora jq funcionará porque el campo version está presente
