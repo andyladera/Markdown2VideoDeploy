@@ -29,10 +29,6 @@ jobs:
         curl -sS https://getcomposer.org/installer | php
         sudo mv composer.phar /usr/local/bin/composer
 
-    # Cambiar el directorioa Markdown2Video
-    - name: Navigate to Markdown2Video directory
-      run: cd Markdown2Video  # Cambia el directorio a Markdown2Video
-
     - name: Install Dependencies
       run: |
         cd Markdown2Video  # Asegurarse de estar en la carpeta correcta
@@ -42,11 +38,6 @@ jobs:
     #   run: |
     #    cd Markdown2Video  # Asegurarse de estar en la carpeta correcta
     #    vendor/bin/phpunit --configuration phpunit.xml
-
-    - name: Build Project (si necesitas compilar o procesar algún archivo)
-      run: |
-        cd Markdown2Video  # Asegurarse de estar en la carpeta correcta
-        echo "Building PHP project..."
 
     - name: Create Release Package
       run: |
