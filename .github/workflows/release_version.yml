@@ -54,7 +54,7 @@ jobs:
         mkdir release
         zip -r release/project-${GITHUB_SHA}.zip .  # O el tipo de archivo que prefieras como release
 
-    - name: Create Git tag  # Este paso  debe estar alineado correctamente
+    - name: Create Git tag  # Estepaso debe estar alineado correctamente
       run: |
         cd Markdown2Video
         VERSION=$(jq -r .version < composer.json)  # Ahora jq funcionará porque el campo version está presente
@@ -89,25 +89,6 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
-    
-    - name: Ensure S3 bucket exists
-      run: |
-        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        REGION=${{ secrets.AWS_REGION }}
-        S3_BUCKET="elasticbeanstalk-${REGION}-${ACCOUNT_ID}"
-        
-        if ! aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
-          echo "Bucket $S3_BUCKET does not exist. Creating it..."
-          if [ "$REGION" = "us-east-1" ]; then
-            aws s3api create-bucket --bucket "$S3_BUCKET"
-          else
-            aws s3api create-bucket \
-              --bucket "$S3_BUCKET" \
-              --create-bucket-configuration LocationConstraint="$REGION"
-          fi
-        else
-          echo "Bucket $S3_BUCKET already exists."
-        fi
 
     - name: Upload app to S3
       run: |
