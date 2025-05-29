@@ -1,7 +1,7 @@
 name: Release Version
 
 env:
-  PHP_VERSION: 8.1
+  PHP_VERSION: 8.2
   COMPOSER_VERSION: 2.1
 
 on:
