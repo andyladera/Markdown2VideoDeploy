@@ -58,13 +58,13 @@ class AuthController {
         if (empty($email) || empty($password_from_form)) {
             $_SESSION['error'] = 'El correo electrónico y la contraseña son obligatorios.';
              // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: /auth/login'); // <-- CORREGIDO
             exit();
         }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'El formato del correo electrónico no es válido.';
              // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: /auth/login'); // <-- CORREGIDO
             exit();
         }
 
@@ -90,14 +90,14 @@ class AuthController {
                 $_SESSION['logged_in'] = true; // Flag para indicar que está logueado
 
                 // ¡REDIRECCIÓN DE ÉXITO!
-                header('Location: ' . BASE_URL . '/dashboard'); // <-- AL DASHBOARD
+                header('Location: /dashboard'); // <-- AL DASHBOARD
                 exit();
 
             } else {
                 // FALLO: Usuario no encontrado O contraseña incorrecta
                 $_SESSION['error'] = 'Correo electrónico o contraseña incorrectos.';
                 // Redirigir a la URL que muestra el formulario de login
-                header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+                header('Location: /auth/login'); // <-- CORREGIDO
                 exit();
             }
             // --- FIN DEL PUNTO MÁS PROBABLE DE FALLO ---
@@ -106,13 +106,13 @@ class AuthController {
             error_log("Error de BD en AuthController::processLogin: " . $e->getMessage());
             $_SESSION['error'] = 'Error del servidor al intentar iniciar sesión.';
             // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: /auth/login'); // <-- CORREGIDO
             exit();
         } catch (\Exception $e) { // Otro error inesperado
             error_log("Error inesperado en AuthController::processLogin: " . $e->getMessage());
             $_SESSION['error'] = 'Ocurrió un error inesperado.';
              // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: /auth/login'); // <-- CORREGIDO
             exit();
         }
     }
@@ -135,7 +135,7 @@ class AuthController {
         session_destroy(); // Destruir sesión
 
         // Redirigir a la URL que muestra el formulario de login
-        header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+        header('Location: /auth/login'); // <-- CORREGIDO
         exit();
     }
 
