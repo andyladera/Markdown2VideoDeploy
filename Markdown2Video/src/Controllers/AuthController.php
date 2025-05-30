@@ -64,7 +64,7 @@ class AuthController {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'El formato del correo electrónico no es válido.';
              // Redirigir a la URL que muestra el formulario de login
-            header('Location: /auth/login'); // <-- CORREGIDO
+            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
             exit();
         }
 

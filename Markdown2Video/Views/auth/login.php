@@ -59,7 +59,7 @@ $success_message = $success_message ?? null; // Pasada por el controlador
                 Ejemplo: /auth/processlogin o simplemente /login si tu router maneja POST a /login.
                 Ajusta esta ruta según cómo definas tu ruteo en index.php.
             -->
-            <form class="login-form" action="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/auth/processlogin" method="POST">
+            <form class="login-form" action="/auth/processlogin" method="POST">
                 <!-- Campo oculto para el token CSRF -->
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
                 
@@ -82,7 +82,7 @@ $success_message = $success_message ?? null; // Pasada por el controlador
                     Ajusta según tu ruteo.
                 -->
                 <!-- En Views/auth/login.php -->
-                <a href="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/auth/register">¿No tienes una cuenta? Regístrate</a>
+                <a href="/auth/register">¿No tienes una cuenta? Regístrate</a>
             </form>
         </div>
         <!-- 
