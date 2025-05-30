@@ -42,7 +42,7 @@ class Database {
         $this->db_name = $db_name ?? $_ENV['DB_NAME'] ?? 'markdown2video';
         $this->username = $username ?? $_ENV['DB_USER'] ?? 'admin';
         $this->password = $password ?? $_ENV['DB_PASS'] ?? 'admin1234'; // ¡EN PRODUCCIÓN, NUNCA DEJAR VACÍA Y NO USAR VALOR POR DEFECTO ASÍ!
-        //$this->port = $port ?? $_ENV['DB_PORT'] ?? '3306';
+        $this->port = $port ?? $_ENV['DB_PORT'] ?? '3306';
         $this->charset = $charset;
 
         // Opciones por defecto de PDO, se pueden sobrescribir
