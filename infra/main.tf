@@ -10,7 +10,7 @@ resource "aws_elastic_beanstalk_application" "php_app" {
 resource "aws_elastic_beanstalk_environment" "php_app_env" {
   name                = "markdown2video-env"
   application         = aws_elastic_beanstalk_application.php_app.name
-  solution_stack_name = "64bit Amazon Linux 2023 v4.6.2 running PHP 8.2"
+  solution_stack_name = "64bit Amazon Linux 2 v3.5.0 running PHP 8.2"
 
   # Habilitar entorno de instancia única (sin balanceador)
   setting {
