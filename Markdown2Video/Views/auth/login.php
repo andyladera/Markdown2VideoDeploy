@@ -67,7 +67,7 @@ $success_message = $success_message ?? null; // Pasada por el controlador
                 <!-- <input type="hidden" name="action" value="login"> -->
                 
                 <div class="input-group">
-                    <h2>INICIAR SESIÓN</h2>
+                    <h2>INICIAR SESIÓNN</h2>
                     <label for="email">Correo Electrónico</label>
                     <input type="email" id="email" name="email" placeholder="tu@correo.com" required autofocus>
                 </div>
