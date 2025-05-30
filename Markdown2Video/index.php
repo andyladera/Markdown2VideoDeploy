@@ -27,7 +27,7 @@ try {
 
 // 2. DEFINIR CONSTANTES IMPORTANTES
 define('ROOT_PATH', __DIR__); // Directorio raíz del proyecto
-define('BASE_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/')); // URL base (ej. /markdown2video o '' si está en la raíz web)
+define('BASE_URL', '');
 define('APP_PATH', ROOT_PATH . '/src/');   // Ruta a tu código fuente en src/
 define('VIEWS_PATH', ROOT_PATH . '/Views/'); // Views está en la raíz del proyecto
 
