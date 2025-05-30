@@ -1,3 +1,32 @@
+# Activar el motor de reescritura
 RewriteEngine On
-RewriteRule ^prueba-htaccess$ prueba.html [L]
 
+# Eliminar RewriteBase si estás en la raíz del dominio
+# RewriteBase /
+
+# Opcional: Evitar listado de directorios
+Options -Indexes
+
+# 1. Bloquear acceso a directorios sensibles
+RewriteRule ^(src|Views|vendor)/ - [F,L]
+
+# 2. Bloquear acceso directo a archivos .php excepto index.php
+RewriteCond %{REQUEST_URI} !^/index\.php$
+RewriteCond %{REQUEST_URI} \.php$ [NC]
+RewriteRule .* - [F,L]
+
+# 3. Reglas para el Front Controller
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
+
+# Proteger archivos sensibles
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "\.(env|config|example|md|gitignore|htaccess|htpasswd|ini|log|sh|inc|bak|sql)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
