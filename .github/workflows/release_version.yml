@@ -41,9 +41,12 @@ jobs:
 
     - name: Create Release Package
       run: |
-        cd Markdown2Video  # Asegurarse de estar en la carpeta correcta
-        mkdir release
-        zip -r release/project-${GITHUB_SHA}.zip . -x "*.git*" -x "*node_modules*" # O el tipo de archivo que prefieras como release
+        cd Markdown2Video
+        mkdir -p release
+        zip -r release/project-${GITHUB_SHA}.zip . \
+          -x "**/.git/*" \
+          -x "**/node_modules/*" \
+          -x "**/.DS_Store"
 
     - name: Create Git tag  # Estepaso debe estar alineado correctamente
       run: |
