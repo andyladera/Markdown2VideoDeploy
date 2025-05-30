@@ -1,1 +1,5 @@
-ErrorDocument 404 /prueba.html
+# Activar la reescritura
+RewriteEngine On
+
+# Redirigir cualquier acceso a /prueba-htaccess a /index.html (o cualquier archivo)
+RewriteRule ^prueba-htaccess$ /htacces-ok.html [L]
