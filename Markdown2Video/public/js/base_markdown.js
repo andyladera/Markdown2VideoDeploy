@@ -36,8 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
         modeSelect.addEventListener("change", function () {
             const selectedMode = this.value;
             if (selectedMode === "marp") {
-                if (baseUrlJs) { window.location.href = baseUrlJs + '/markdown/marp-editor'; }
-                else { console.error("JS ERROR: BASE_URL no config para Marp."); }
+                window.location.href = baseUrlJs + '/markdown/marp-editor'; 
             } else if (selectedMode === "markdown") { console.log("JS: Modo Markdown seleccionado."); if (editorInstance) updateMarkdownPreview(); }
         });
     }
