@@ -34,11 +34,6 @@ jobs:
         cd Markdown2Video  # Asegurarse de estar en la carpeta correcta
         composer install --no-dev --optimize-autoloader  # Ejecuta composer dentro de la carpeta Markdown2Video
 
-    # - name: Run PHP Tests (si usas PHPUnit u otro framework de pruebas)
-    #   run: |
-    #    cd Markdown2Video  # Asegurarse de estar en la carpeta correcta
-    #    vendor/bin/phpunit --configuration phpunit.xml
-
     - name: Create Release Package
       run: |
         cd Markdown2Video
@@ -83,6 +78,10 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: List contents of zip file
+      run: |
+        unzip -l Markdown2Video/release/project-${GITHUB_SHA}.zip
 
     - name: Upload app to S3
       run: |
