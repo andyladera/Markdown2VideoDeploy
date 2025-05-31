@@ -2,7 +2,7 @@
 // src/Models/UserModel.php
 namespace Dales\Markdown2video\Models;
 
-use PDO; 
+use PDO; // Para type hinting y constantes PDO::PARAM_INT
 
 class UserModel {
     private PDO $pdo; // Almacena la conexión PDO inyectada

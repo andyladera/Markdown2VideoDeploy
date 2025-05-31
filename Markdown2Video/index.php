@@ -187,18 +187,18 @@ if (class_exists($controllerClassName)) {
         if (method_exists($controllerInstance, $methodToCall)) {
             call_user_func_array([$controllerInstance, $methodToCall], $params);
         } else {
-            // // Método no encontrado en el controlador
-            // error_log("Método no encontrado: {$controllerClassName}->{$methodToCall} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
-            // http_response_code(404);
-            // if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
-            //     //include VIEWS_PATH . 'error/404.php';
-            //     echo "<h1>Error en el metodo Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
-            // echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
-            // echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
-            // echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
-            // } else {
-            //     echo "404 - Método o Recurso no encontrado."; // Mensaje de fallback
-            // }
+            // Método no encontrado en el controlador
+            error_log("Método no encontrado: {$controllerClassName}->{$methodToCall} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
+            http_response_code(404);
+            if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
+                //include VIEWS_PATH . 'error/404.php';
+                echo "<h1>Error en el metodo Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
+            echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
+            echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
+            echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
+            } else {
+                echo "404 - Método o Recurso no encontrado."; // Mensaje de fallback
+            }
         }
     } catch (Throwable $e) { // Capturar Throwable para errores y excepciones (PHP 7+)
         error_log("Error al ejecutar controlador {$controllerClassName}->{$methodToCall}: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
@@ -217,18 +217,18 @@ if (class_exists($controllerClassName)) {
         }
     }
 } else {
-    // // Clase de controlador no encontrada
-    // error_log("Clase de controlador no encontrada: {$controllerClassName} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
-    // http_response_code(404);
-    // if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
-    //     //include VIEWS_PATH . 'error/404.php';
-    //     echo "<h1>Error en la clase Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
-    //         echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
-    //         echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
-    //         echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
-    // } else {
-    //     echo "404 - Página no encontrada."; // Mensaje de fallback
-    // }
+    // Clase de controlador no encontrada
+    error_log("Clase de controlador no encontrada: {$controllerClassName} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
+    http_response_code(404);
+    if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
+        //include VIEWS_PATH . 'error/404.php';
+        echo "<h1>Error en la clase Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
+            echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
+            echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
+            echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
+    } else {
+        echo "404 - Página no encontrada."; // Mensaje de fallback
+    }
 }
 
 // --- FIN DE index.php ---
