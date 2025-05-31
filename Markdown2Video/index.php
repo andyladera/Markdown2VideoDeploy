@@ -27,13 +27,14 @@ try {
 
 // 2. DEFINIR CONSTANTES IMPORTANTES
 define('ROOT_PATH', __DIR__); // Directorio raíz del proyecto
-define('BASE_URL', '');
+define('BASE_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/')); // URL base (ej. /markdown2video o '' si está en la raíz web)
 define('APP_PATH', ROOT_PATH . '/src/');   // Ruta a tu código fuente en src/
 define('VIEWS_PATH', ROOT_PATH . '/Views/'); // Views está en la raíz del proyecto
 
 // 3. CONFIGURACIÓN DEL ENTORNO (desarrollo/producción)
 // Usar una variable de entorno para esto es la mejor práctica. Default a 'production' por seguridad.
-define('ENVIRONMENT', $_ENV['APP_ENV'] ?? 'production');
+//define('ENVIRONMENT', $_ENV['APP_ENV'] ?? 'production');
+define('ENVIRONMENT', 'development');
 
 if (ENVIRONMENT === 'development') {
     ini_set('display_errors', 1);
@@ -134,18 +135,31 @@ $methodToCall = $actionName;
 if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController') {
     // Para la URL raíz, la lógica de arriba ya establece $controllerNamePart='Auth' y $methodToCall='showLoginForm'
     if ($actionName === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') { $methodToCall = 'processLogin'; }
-    elseif ($actionName === 'login' && $_SERVER['REQUEST_METHOD'] === 'GET' && !empty($urlSegments[0]) && strtolower($urlSegments[0]) === 'auth') { $methodToCall = 'showLoginForm'; } // Específicamente para /auth/login
+    elseif ($actionName === 'login' && $_SERVER['REQUEST_METHOD'] === 'GET') { $methodToCall = 'showLoginForm'; } // Cubre la raíz y /auth/login explícito
     elseif ($actionName === 'logout') { $methodToCall = 'logout'; }
     elseif ($actionName === 'register' && $_SERVER['REQUEST_METHOD'] === 'GET') { $methodToCall = 'showRegisterForm'; }
     elseif ($actionName === 'register' && $_SERVER['REQUEST_METHOD'] === 'POST') { $methodToCall = 'processRegistration'; }
 } elseif ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\DashboardController') {
     if ($actionName === 'index') { /* $methodToCall ya es 'index' por defecto */ }
-    // Añadir más rutas específicas para DashboardController aquí
+    // Añadir más acciones para DashboardController
 } elseif ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\MarkdownController') {
-    if ($actionName === 'create' && $_SERVER['REQUEST_METHOD'] === 'GET') { $methodToCall = 'create'; }
-    elseif ($actionName === 'marp-editor' && $_SERVER['REQUEST_METHOD'] === 'GET') { $methodToCall = 'showMarpEditor'; }
-    elseif ($actionName === 'render-marp-preview' && $_SERVER['REQUEST_METHOD'] === 'POST') { $methodToCall = 'renderMarpPreview'; }
-    // Añadir más rutas para MarkdownController (store, edit, update, delete, history, etc.)
+    if ($actionName === 'create' && $_SERVER['REQUEST_METHOD'] === 'GET') { 
+        $methodToCall = 'create'; 
+    } elseif ($actionName === 'marp-editor' && $_SERVER['REQUEST_METHOD'] === 'GET') { 
+        $methodToCall = 'showMarpEditor'; 
+    } elseif ($actionName === 'render-marp-preview' && $_SERVER['REQUEST_METHOD'] === 'POST') { 
+        $methodToCall = 'renderMarpPreview'; 
+    } 
+    // --- RUTAS PARA GENERAR PDF DESDE HTML DEL PREVIEW ---
+    elseif ($actionName === 'generate-pdf-from-html' && $_SERVER['REQUEST_METHOD'] === 'POST') { 
+        $methodToCall = 'generatePdfFromHtml'; 
+    } 
+    // --- RUTAS PARA LA PÁGINA DE DESCARGA Y DESCARGA FORZADA (PUEDEN SER LAS MISMAS PARA CUALQUIER PDF) ---
+    elseif ($actionName === 'download-page' && $_SERVER['REQUEST_METHOD'] === 'GET') { 
+        $methodToCall = 'showPdfDownloadPage'; 
+    } elseif ($actionName === 'force-download-pdf' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        $methodToCall = 'forceDownloadPdf'; 
+    }
 }
 
 
@@ -157,7 +171,7 @@ if (class_exists($controllerClassName)) {
         $controllersRequiringPdo = [
             'Dales\\Markdown2video\\Controllers\\AuthController',
             'Dales\\Markdown2video\\Controllers\\DashboardController',
-            'Dales\\Markdown2video\\Controllers\\MarkdownController',
+            'Dales\\Markdown2video\\Controllers\\MarkdownController', // MarkdownController necesita PDO
         ];
 
         if (in_array($controllerClassName, $controllersRequiringPdo)) {

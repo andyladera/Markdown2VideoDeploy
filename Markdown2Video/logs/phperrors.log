@@ -107,3 +107,14 @@ Trace: #0 C:\xampp\htdocs\Markdown2Video\index.php(89): Dales\Markdown2video\Con
 [19-May-2025 03:53:44 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->< para URL 'markdown/<' (Segments: ["markdown","<"])
 [19-May-2025 03:56:53 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->< para URL 'markdown/<' (Segments: ["markdown","<"])
 [19-May-2025 03:57:45 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->< para URL 'markdown/<' (Segments: ["markdown","<"])
+[30-May-2025 09:05:40 Europe/Berlin] Controller Error: Dales\Markdown2video\Controllers\MarkdownController->showPdfDownloadPage: Failed opening required 'C:\xampp\htdocs\Markdown2Video/Views/markdown/download_pdf.php' (include_path='C:\xampp\php\PEAR')
+Trace: #0 C:\xampp\htdocs\Markdown2Video\index.php(125): Dales\Markdown2video\Controllers\MarkdownController->showPdfDownloadPage('md_18CA.tmp.pdf')
+#1 {main}
+[30-May-2025 09:34:15 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->generatePdfFromHtml para URL 'markdown/generate-pdf-from-html' (Segments: ["markdown","generate-pdf-from-html"])
+[30-May-2025 19:50:50 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->generatePdfFromHtml para URL 'markdown/generate-pdf-from-html' (Segments: ["markdown","generate-pdf-from-html"])
+[30-May-2025 19:54:01 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->generatePdfFromHtml para URL 'markdown/generate-pdf-from-html' (Segments: ["markdown","generate-pdf-from-html"])
+[30-May-2025 19:54:11 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->generatePdfFromHtml para URL 'markdown/generate-pdf-from-html' (Segments: ["markdown","generate-pdf-from-html"])
+[30-May-2025 20:01:39 Europe/Berlin] Método no encontrado: Dales\Markdown2video\Controllers\MarkdownController->generatePdfFromHtml para URL 'markdown/generate-pdf-from-html' (Segments: ["markdown","generate-pdf-from-html"])
+[30-May-2025 20:04:12 Europe/Berlin] Error al ejecutar controlador Dales\Markdown2video\Controllers\MarkdownController->showPdfDownloadPage: Failed opening required 'C:\xampp\htdocs\Markdown2Video/Views/markdown/download_pdf.php' (include_path='C:\xampp\php\PEAR')
+Trace: #0 C:\xampp\htdocs\Markdown2Video\index.php(186): Dales\Markdown2video\Controllers\MarkdownController->showPdfDownloadPage('preview_md_1748...')
+#1 {main}

@@ -17,9 +17,7 @@ class Database {
     private ?PDO $pdoInstance = null; 
 
     /**
-     * Constructor de la clase Database.
-     * Las credenciales y configuración se pasan aquí o se cargan desde variables de entorno.
-     *
+
      * @param string|null $host
      * @param string|null $db_name
      * @param string|null $username
@@ -41,23 +39,20 @@ class Database {
         $this->host = $host ?? $_ENV['DB_HOST'] ?? 'markdown2video-db.cbeq24kc8xe3.us-east-2.rds.amazonaws.com';
         $this->db_name = $db_name ?? $_ENV['DB_NAME'] ?? 'markdown2video';
         $this->username = $username ?? $_ENV['DB_USER'] ?? 'admin';
-        $this->password = $password ?? $_ENV['DB_PASS'] ?? 'admin1234'; // ¡EN PRODUCCIÓN, NUNCA DEJAR VACÍA Y NO USAR VALOR POR DEFECTO ASÍ!
+        $this->password = $password ?? $_ENV['DB_PASS'] ?? 'admin1234'; 
         $this->port = $port ?? $_ENV['DB_PORT'] ?? '3306';
         $this->charset = $charset;
 
-        // Opciones por defecto de PDO, se pueden sobrescribir
         $defaultOptions = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ];
-        $this->options = array_replace($defaultOptions, $options); // array_replace para que las opciones pasadas tengan precedencia
+        $this->options = array_replace($defaultOptions, $options); 
     }
 
     /**
-     * Establece y/o devuelve la conexión PDO.
-     * La conexión se establece de forma "lazy" (solo cuando se necesita por primera vez).
-     *
+
      * @return PDO La instancia de PDO.
      * @throws PDOException Si la conexión falla.
      */
@@ -67,38 +62,23 @@ class Database {
             try {
                 $this->pdoInstance = new PDO($dsn, $this->username, $this->password, $this->options);
             } catch (PDOException $e) {
-                // En producción, loguear el error detallado y lanzar una excepción más genérica
-                // o una excepción específica de la aplicación si se prefiere.
                 error_log("Error de conexión a la base de datos: " . $e->getMessage() . " (DSN: " . $dsn . ")");
-                // Podrías crear una clase de excepción personalizada como DatabaseConnectionException
                 throw new PDOException("No se pudo conectar al servidor de datos. Por favor, inténtelo más tarde.", (int)$e->getCode(), $e);
             }
         }
         return $this->pdoInstance;
     }
 
-    /**
-     * Cierra la conexión explícitamente si es necesario.
-     * PDO normalmente cierra la conexión cuando el script termina o el objeto es destruido,
-     * pero este método permite un cierre explícito.
-     */
     public function disconnect(): void {
         $this->pdoInstance = null;
     }
 
-    // Los métodos para ejecutar consultas ahora utilizarán la conexión obtenida de getConnection()
-    // y podrían ser métodos de esta clase o, preferiblemente, la instancia PDO
-    // se pasaría a un "Query Builder" o a los Repositorios/Modelos directamente.
-
-    // Si quieres mantener métodos helper en esta clase (opcional):
-
     /**
-     * Ejecuta una consulta y devuelve el objeto PDOStatement.
      *
-     * @param string $sql La consulta SQL.
-     * @param array $params Los parámetros para la consulta preparada.
-     * @return \PDOStatement
-     * @throws PDOException
+     * @param string 
+     * @param array
+     * @return 
+     * @throws
      */
     public function query(string $sql, array $params = []): \PDOStatement {
         try {
@@ -107,13 +87,11 @@ class Database {
             return $stmt;
         } catch (PDOException $e) {
             error_log("Error en consulta: " . $e->getMessage() . " | SQL: " . $sql . " | Params: " . json_encode($params));
-            // Re-lanzar la excepción para que el llamador pueda manejarla si es necesario
-            throw $e; // O una excepción personalizada
+            throw $e; 
         }
     }
 
     /**
-     * Ejecuta una consulta SELECT y devuelve todos los resultados.
      *
      * @param string $sql
      * @param array $params
@@ -125,7 +103,6 @@ class Database {
     }
 
     /**
-     * Ejecuta una consulta SELECT y devuelve la primera fila.
      *
      * @param string $sql
      * @param array $params
@@ -137,31 +114,28 @@ class Database {
     }
 
     /**
-     * Ejecuta una consulta INSERT y devuelve el ID del último registro insertado.
      *
-     * @param string $sql
-     * @param array $params
-     * @return string|false El ID del último registro o false en caso de error.
-     * @throws PDOException
+     * @param string 
+     * @param array 
+     * @return string|false 
+     * @throws 
      */
-    public function insert(string $sql, array $params = []) { // puede devolver string o false
+    public function insert(string $sql, array $params = []) {
         $this->query($sql, $params);
-        return $this->pdoInstance->lastInsertId(); // Acceder a la instancia PDO después de getConnection()
+        return $this->pdoInstance->lastInsertId(); 
     }
 
     /**
-     * Ejecuta una consulta UPDATE o DELETE y devuelve el número de filas afectadas.
      *
-     * @param string $sql
-     * @param array $params
-     * @return int El número de filas afectadas.
-     * @throws PDOException
+     * @param string 
+     * @param array 
+     * @return int 
+     * @throws 
      */
     public function execute(string $sql, array $params = []): int {
         return $this->query($sql, $params)->rowCount();
     }
 
-    // Métodos de transacción
     public function beginTransaction(): bool {
         return $this->getConnection()->beginTransaction();
     }
@@ -175,7 +149,6 @@ class Database {
     }
 
     public function inTransaction(): bool {
-        // getConnection() asegura que pdoInstance no sea null si hay una transacción activa
         return $this->pdoInstance ? $this->pdoInstance->inTransaction() : false;
     }
 }

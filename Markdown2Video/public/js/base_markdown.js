@@ -1,98 +1,110 @@
 // public/js/base_markdown.js
-
 document.addEventListener('DOMContentLoaded', function () {
-    const editorTextarea = document.getElementById('editor'); // ID del textarea en base_markdown.php
-    const previewDiv = document.getElementById('ppt-preview'); // ID del div de previsualización
-    const modeSelect = document.getElementById('mode-select');   // ID del select en base_markdown.php
+    const editorTextarea = document.getElementById('editor');
+    const previewDiv = document.getElementById('ppt-preview'); // El div donde marked.js renderiza el HTML
+    const modeSelect = document.getElementById('mode-select');
+    const generatePdfBtnHtml = document.getElementById('generatePdfBtnHtml'); // Nuevo ID
     
-    // Obtener BASE_URL de la variable global definida en la vista PHP (Views/base_markdown.php)
-    // Ejemplo en la vista PHP: <script>window.BASE_APP_URL = <?php echo json_encode($base_url); ?>;</script>
     const baseUrlJs = typeof window.BASE_APP_URL !== 'undefined' ? window.BASE_APP_URL : '';
-    if (baseUrlJs === '') {
-        console.warn("ADVERTENCIA: window.BASE_APP_URL no está definida en el HTML. Las redirecciones del combobox de modo podrían fallar.");
-    }
+    const csrfTokenPdfGenerate = typeof window.CSRF_TOKEN_PDF_GENERATE !== 'undefined' ? window.CSRF_TOKEN_PDF_GENERATE : '';
 
-    // Verificar si el textarea del editor existe antes de inicializar CodeMirror
-    if (!editorTextarea) {
-        console.error("Textarea con ID 'editor' no encontrado. CodeMirror no se inicializará.");
-        return; // Salir del script si no hay editor
-    }
+    if (baseUrlJs === '') { console.warn("JS WARN: window.BASE_APP_URL no definida."); }
 
-    // Inicializar CodeMirror para el editor Markdown estándar
-    const editorInstance = CodeMirror.fromTextArea(editorTextarea, {
-        lineNumbers: true,                                  // Mostrar números de línea
-        mode: "markdown",                                   // Establecer modo Markdown
-        theme: "dracula",                                   // Tema oscuro
-        lineWrapping: true,                                 // Envolver líneas largas
-        matchBrackets: true,                                // Resaltar paréntesis/corchetes que coinciden
-        placeholder: editorTextarea.getAttribute('placeholder') || "Escribe tu Markdown aquí...", // Tomar placeholder del textarea
-        extraKeys: { 
-            "Enter": "newlineAndIndentContinueMarkdownList" // Comportamiento inteligente de Enter para listas Markdown
-        }
-    });
+    if (!editorTextarea) { console.error("JS ERROR: Textarea #editor no encontrado."); return; }
+    let editorInstance = null;
+    try {
+        editorInstance = CodeMirror.fromTextArea(editorTextarea, {
+            lineNumbers: true, mode: "markdown", theme: "dracula", lineWrapping: true,
+            matchBrackets: true, placeholder: editorTextarea.getAttribute('placeholder') || "Escribe...",
+            extraKeys: { "Enter": "newlineAndIndentContinueMarkdownList" }
+        });
+    } catch(e) { console.error("JS ERROR: CodeMirror init falló:", e); return; }
 
-    // Función para ajustar el tamaño y refrescar el editor (ayuda con glitches de renderizado)
-    function refreshEditorLayout() {
-        if (editorInstance) {
-            // Ajustar al 100% del contenedor .editor-body
-            // Asegúrate de que .editor-body en tu CSS (base_markdown.css) tenga altura flexible
-            // (ej. usando flex-grow: 1 si su padre .editor-container es display:flex y flex-direction:column)
-            editorInstance.setSize('100%', '100%'); 
-            editorInstance.refresh(); // Forzar un redibujado de CodeMirror
-        }
-    }
+    function refreshEditor() { if (editorInstance) { editorInstance.setSize('100%', '100%'); editorInstance.refresh(); } }
+    setTimeout(refreshEditor, 100); // Dar tiempo al DOM
 
-    // Llamar a refresh después de un breve retraso para que el DOM se asiente
-    setTimeout(refreshEditorLayout, 50); 
-
-    // Función para actualizar la previsualización del Markdown usando Marked.js
     function updateMarkdownPreview() {
-        if (!previewDiv) { // Salir si no hay div de previsualización
-            // console.warn("Div de previsualización ('ppt-preview') no encontrado.");
-            return; 
-        }
+        if (!previewDiv) return;
         if (typeof marked !== 'undefined' && editorInstance) {
-            try {
-                // Usar la opción 'sanitize' o 'sanitizer' de marked.js si es necesario para seguridad
-                // (aunque por defecto marked.parse() ya debería escapar HTML)
-                // const options = { sanitize: true }; // Para versiones antiguas de marked, ahora es con DOMPurify
-                previewDiv.innerHTML = marked.parse(editorInstance.getValue());
-            } catch (e) {
-                console.error("Error al parsear Markdown con marked.js:", e);
-                previewDiv.innerHTML = "<p style='color:red;'>Error en la previsualización del Markdown.</p>";
-            }
-        } else if (typeof marked === 'undefined') {
-            // console.warn("Marked.js no está cargado. La previsualización no funcionará.");
-            previewDiv.innerHTML = "<p style='color:orange;'>Previsualización no disponible (Marked.js no cargado).</p>";
-        }
+            try { previewDiv.innerHTML = marked.parse(editorInstance.getValue()); }
+            catch (e) { console.error("JS Error marked.js:", e); previewDiv.innerHTML = "<p style='color:red;'>Error preview.</p>"; }
+        } else if (typeof marked === 'undefined') { previewDiv.innerHTML = "<p style='color:orange;'>Marked.js no cargado.</p>"; }
     }
+    if (editorInstance) { editorInstance.on("change", updateMarkdownPreview); setTimeout(updateMarkdownPreview, 150); }
 
-    // Escuchar cambios en el editor para actualizar la previsualización
-    if (editorInstance) {
-        editorInstance.on("change", updateMarkdownPreview);
-        // Llamada inicial para renderizar cualquier contenido al cargar la página, después del refresh
-        setTimeout(updateMarkdownPreview, 100); 
-    }
-
-    // Manejador para el combobox de selección de modo (Markdown/Marp)
     if (modeSelect) {
         modeSelect.addEventListener("change", function () {
-            const selectedMode = this.value; // 'markdown' o 'marp'
-            
+            const selectedMode = this.value;
             if (selectedMode === "marp") {
-                if (baseUrlJs) { // Solo redirigir si baseUrlJs tiene un valor
-                    // Redirigir a la URL LIMPIA que maneja tu router para el editor Marp
-                    window.location.href = baseUrlJs + '/markdown/marp-editor'; 
-                } else {
-                    console.error("No se puede redirigir a Marp: BASE_URL no está configurada correctamente en JavaScript.");
-                    alert("Error de configuración: No se puede cambiar al editor Marp en este momento.");
+                if (baseUrlJs) { window.location.href = baseUrlJs + '/markdown/marp-editor'; }
+                else { console.error("JS ERROR: BASE_URL no config para Marp."); }
+            } else if (selectedMode === "markdown") { console.log("JS: Modo Markdown seleccionado."); if (editorInstance) updateMarkdownPreview(); }
+        });
+    }
+
+    // --- Funcionalidad para el botón "Generar PDF (desde Preview)" ---
+    if (generatePdfBtnHtml && previewDiv) { // Verificar que previewDiv exista
+        console.log("JS DEBUG: Botón #generatePdfBtnHtml encontrado. Añadiendo listener.");
+        generatePdfBtnHtml.addEventListener('click', async function() {
+            console.log("JS DEBUG: Clic en 'Generar PDF (desde Preview)'.");
+            
+            const htmlContentForPdf = previewDiv.innerHTML; // <--- TOMA EL HTML DEL PREVIEW
+
+            if (!htmlContentForPdf.trim() || htmlContentForPdf.includes("La vista previa se mostrará aquí...")) {
+                alert("La vista previa está vacía. Escribe algo en el editor y espera a que se genere la previsualización.");
+                return;
+            }
+
+            const originalButtonText = this.textContent;
+            this.textContent = 'Generando PDF...';
+            this.disabled = true;
+
+            try {
+                const endpoint = baseUrlJs + '/markdown/generate-pdf-from-html'; // NUEVO ENDPOINT
+                console.log("JS DEBUG: Enviando HTML a endpoint:", endpoint);
+                
+                const bodyParams = new URLSearchParams();
+                bodyParams.append('html_content', htmlContentForPdf); // Envía 'html_content'
+                if (csrfTokenPdfGenerate) { // Añadir CSRF si está disponible
+                    bodyParams.append('csrf_token_generate_pdf', csrfTokenPdfGenerate);
+                } else { console.warn("JS WARN: CSRF Token para generar PDF no encontrado."); }
+
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: bodyParams.toString()
+                });
+                console.log("JS DEBUG: Respuesta Fetch PDF - Status:", response.status, "OK:", response.ok);
+
+                if (!response.ok) {
+                    let errorMsg = `Error del servidor: ${response.status}`;
+                    const errorTextAttempt = await response.text();
+                    try { const errorData = JSON.parse(errorTextAttempt); errorMsg = errorData.error || errorData.message || errorMsg; }
+                    catch (e) { if(errorTextAttempt) errorMsg += ` - ${errorTextAttempt.substring(0,100)}`;}
+                    throw new Error(errorMsg);
                 }
-            } else if (selectedMode === "markdown") {
-                // Ya estamos en la página del editor Markdown Estándar.
-                console.log("Modo Markdown Estándar seleccionado (ya en esta página).");
-                // Podrías forzar una actualización de la previsualización si fuera necesario.
-                if (editorInstance) updateMarkdownPreview();
+
+                const data = await response.json();
+                console.log("JS DEBUG: Datos respuesta backend PDF:", data);
+
+                if (data.success && data.downloadPageUrl) {
+                    const downloadPageFullUrl = baseUrlJs + data.downloadPageUrl;
+                    console.log("JS DEBUG: Abriendo pág. descarga:", downloadPageFullUrl);
+                    window.open(downloadPageFullUrl, '_blank');
+                } else if (data.error) { alert(`Error al generar PDF: ${data.error}`); }
+                else { alert("Respuesta inesperada del servidor (PDF)."); }
+
+            } catch (error) {
+                console.error("JS ERROR en func. generar PDF (catch):", error);
+                alert(`Ocurrió un error: ${error.message}`);
+            } finally {
+                this.textContent = originalButtonText;
+                this.disabled = false;
             }
         });
+    } else {
+        if (!generatePdfBtnHtml) console.warn("JS WARN: Botón #generatePdfBtnHtml NO encontrado.");
+        if (!previewDiv) console.warn("JS WARN: Div #ppt-preview NO encontrado para PDF.");
     }
 });
