@@ -23,6 +23,11 @@ jobs:
       with:
         php-version: ${{ env.PHP_VERSION }}
         extensions: mbstring, xml, curl  # Agregarlas extensiones necesarias para tu proyecto
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20  # o la versión que necesites
 
     - name: Install Composer
       run: |
