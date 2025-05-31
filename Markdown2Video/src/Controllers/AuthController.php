@@ -1,180 +1,156 @@
 <?php
-// 1. NAMESPACE CORRECTO
+// src/Controllers/AuthController.php
 namespace Dales\Markdown2video\Controllers;
 
-// 2. IMPORTAR CLASES NECESARIAS
-use PDO; // Para type hinting de la conexión inyectada
+use PDO;
+use Dales\Markdown2video\Models\UserModel;
 
 class AuthController {
-    private PDO $pdo; // Almacena la conexión PDO inyectada
+    private PDO $pdo;
+    private UserModel $userModel;
 
-    /**
-     * Constructor que recibe la conexión PDO.
-     * @param PDO $pdo La instancia de la conexión PDO.
-     */
     public function __construct(PDO $pdo) {
         $this->pdo = $pdo;
+        $this->userModel = new UserModel($this->pdo);
     }
 
-    /**
-     * Muestra el formulario de login.
-     * Llamado por el router para GET /auth/login (o la ruta raíz '/').
-     */
     public function showLoginForm(): void {
-        // Generar token CSRF si no existe
-        if (empty($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-        $csrf_token = $_SESSION['csrf_token'];
-
-        // Variables necesarias para la vista
-        $base_url = BASE_URL; // Constante global
+        $base_url = BASE_URL;
+        $pageTitle = "Iniciar Sesión";
         $error_message = $_SESSION['error'] ?? null;
         $success_message = $_SESSION['success'] ?? null;
-        unset($_SESSION['error'], $_SESSION['success']); // Limpiar mensajes después de leer
+        unset($_SESSION['error'], $_SESSION['success']);
 
-        // Cargar la vista (VIEWS_PATH es constante global)
-        require_once VIEWS_PATH . 'auth/login.php';
+        $viewPath = VIEWS_PATH . 'auth/login.php';
+        if (file_exists($viewPath)) {
+            // La vista login.php ya no debe esperar $csrf_token
+            require_once $viewPath;
+        } else {
+            error_log("Vista de Login no encontrada: " . $viewPath);
+            http_response_code(500); echo "Error interno del servidor (vista login)."; exit;
+        }
     }
 
-    /**
-     * Procesa el intento de login.
-     * Llamado por el router para POST /auth/processlogin.
-     */
     public function processLogin(): void {
-        // 1. VALIDAR TOKEN CSRF
-        if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'])) {
-            $_SESSION['error'] = 'Petición inválida o el token ha expirado.';
-            // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
-            exit();
-        }
-        // Opcional: unset($_SESSION['csrf_token']); // Invalidar token después de usarlo
+        error_log("PROCESS_LOGIN: Inicio del método.");
+        error_log("PROCESS_LOGIN: (Validación CSRF DESHABILITADA para depuración)");
 
-        // 2. OBTENER Y VALIDAR ENTRADAS
         $email = trim($_POST['email'] ?? '');
         $password_from_form = $_POST['password'] ?? '';
 
+        error_log("PROCESS_LOGIN: Email del formulario: " . $email);
+
         if (empty($email) || empty($password_from_form)) {
             $_SESSION['error'] = 'El correo electrónico y la contraseña son obligatorios.';
-             // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: ' . BASE_URL . '/auth/login');
             exit();
         }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'El formato del correo electrónico no es válido.';
-             // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: ' . BASE_URL . '/auth/login');
             exit();
         }
 
-        // 3. PROCESAR LOGIN (VERIFICACIÓN DE CREDENCIALES)
         try {
-            // Buscar usuario por email (asegúrate que la columna se llame 'password_hash')
-            $query = "SELECT id, username, email, password_hash FROM users WHERE email = :email LIMIT 1";
-            $stmt = $this->pdo->prepare($query);
-            $stmt->bindParam(':email', $email);
-            $stmt->execute();
-            $user = $stmt->fetch();
+            error_log("PROCESS_LOGIN: Buscando usuario por email: " . $email);
+            $user = $this->userModel->findByEmail($email);
 
-            // --- ¡¡PUNTO MÁS PROBABLE DE FALLO SI LAS CREDENCIALES SON INCORRECTAS!! ---
-            if ($user && password_verify($password_from_form, $user['password_hash'])) {
-                // ¡ÉXITO! Usuario encontrado Y contraseña coincide
+            if ($user) {
+                error_log("PROCESS_LOGIN: Usuario encontrado en BD. ID: " . $user['id'] . ". Email: " . $user['email']);
 
-                session_regenerate_id(true); // Seguridad: Prevenir fijación de sesión
+                $isPasswordCorrect = password_verify($password_from_form, $user['password_hash']);
+                error_log("PROCESS_LOGIN_DEBUG_VERIFY_RESULT: Resultado de password_verify(): " . ($isPasswordCorrect ? 'TRUE' : 'FALSE'));
 
-                // Establecer variables de sesión
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['logged_in'] = true; // Flag para indicar que está logueado
-
-                // ¡REDIRECCIÓN DE ÉXITO!
-                header('Location: ' . BASE_URL . '/dashboard'); // <-- AL DASHBOARD
-                exit();
-
+                if ($isPasswordCorrect) {
+                    error_log("PROCESS_LOGIN: ¡PASSWORD VERIFY EXITOSO! Para usuario ID: " . $user['id']);
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['logged_in'] = true;
+                    header('Location: ' . BASE_URL . '/dashboard');
+                    exit();
+                } else {
+                    error_log("PROCESS_LOGIN: FALLO DE PASSWORD_VERIFY para usuario ID: " . ($user['id'] ?? 'DESCONOCIDO'));
+                    $_SESSION['error'] = 'Correo electrónico o contraseña incorrectos.';
+                    header('Location: ' . BASE_URL . '/auth/login');
+                    exit();
+                }
             } else {
-                // FALLO: Usuario no encontrado O contraseña incorrecta
+                error_log("PROCESS_LOGIN: Usuario NO encontrado en BD para email: " . $email);
                 $_SESSION['error'] = 'Correo electrónico o contraseña incorrectos.';
-                // Redirigir a la URL que muestra el formulario de login
-                header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+                header('Location: ' . BASE_URL . '/auth/login');
                 exit();
             }
-            // --- FIN DEL PUNTO MÁS PROBABLE DE FALLO ---
-
-        } catch (\PDOException $e) { // Error de Base de Datos
-            error_log("Error de BD en AuthController::processLogin: " . $e->getMessage());
+        } catch (\PDOException $e) {
+            error_log("Error de BD en AuthController::processLogin: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
             $_SESSION['error'] = 'Error del servidor al intentar iniciar sesión.';
-            // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: ' . BASE_URL . '/auth/login');
             exit();
-        } catch (\Exception $e) { // Otro error inesperado
-            error_log("Error inesperado en AuthController::processLogin: " . $e->getMessage());
+        } catch (\Exception $e) {
+            error_log("Error inesperado en AuthController::processLogin: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
             $_SESSION['error'] = 'Ocurrió un error inesperado.';
-             // Redirigir a la URL que muestra el formulario de login
-            header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+            header('Location: ' . BASE_URL . '/auth/login');
             exit();
         }
     }
 
-    /**
-     * Cierra la sesión del usuario.
-     * Llamado por el router para GET o POST /auth/logout.
-     */
     public function logout(): void {
-        $_SESSION = array(); // Limpiar variables
-
-        if (ini_get("session.use_cookies")) { // Invalidar cookie
+        $_SESSION = array();
+        if (ini_get("session.use_cookies")) {
             $params = session_get_cookie_params();
             setcookie(session_name(), '', time() - 42000,
                 $params["path"], $params["domain"],
                 $params["secure"], $params["httponly"]
             );
         }
-
-        session_destroy(); // Destruir sesión
-
-        // Redirigir a la URL que muestra el formulario de login
-        header('Location: ' . BASE_URL . '/auth/login'); // <-- CORREGIDO
+        session_destroy();
+        header('Location: ' . BASE_URL . '/auth/login');
         exit();
     }
 
-    // --- MÉTODOS PARA REGISTRO (NECESITARÁS IMPLEMENTARLOS) ---
-  
     public function showRegisterForm(): void {
-        // Similar a showLoginForm, genera CSRF, prepara variables, carga Views/auth/registro.php
-        if (empty($_SESSION['csrf_token'])) { $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); }
-        $csrf_token = $_SESSION['csrf_token'];
+        if (empty($_SESSION['csrf_token_register'])) { 
+            $_SESSION['csrf_token_register'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token = $_SESSION['csrf_token_register']; // Variable $csrf_token para la vista de registro
         $base_url = BASE_URL;
+        $pageTitle = "Registro de Nuevo Usuario";
         $error_message = $_SESSION['error'] ?? null;
-        unset($_SESSION['error']);
-        require_once VIEWS_PATH . '/registro.php'; // Asegúrate que esta vista exista
+        $form_data = $_SESSION['form_data'] ?? []; 
+        unset($_SESSION['error'], $_SESSION['form_data']);
+        
+        $viewPath = VIEWS_PATH . 'auth/registro.php'; // Ajusta si es necesario
+        if (file_exists($viewPath)) { require_once $viewPath; }
+        else { error_log("Vista registro no encontrada: " . $viewPath); http_response_code(500); echo "Error."; exit; }
     }
-    /*
+    
     public function processRegistration(): void {
-        // 1. Validar CSRF
-        // 2. Obtener y VALIDAR datos de $_POST (username, email, password, confirm_password, etc.)
-        //    - Campos no vacíos
-        //    - Formato email
-        //    - Contraseña segura (longitud, etc.)
-        //    - Contraseñas coinciden (password === confirm_password)
-        // 3. Verificar si email o username YA EXISTEN en la BD (usando UserModel->findByEmail, etc.)
-        // 4. Si todo es válido y no existen duplicados:
-        //    - Hashear contraseña: $hashedPassword = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        //    - Crear usuario en BD (usando UserModel->createUser)
-        //    - Si se crea bien:
-        //        $_SESSION['success'] = '¡Registro exitoso! Ahora puedes iniciar sesión.';
-        //        header('Location: ' . BASE_URL . '/auth/login'); // Redirigir al login
-        //        exit();
-        //    - Si hay error al crear:
-        //        $_SESSION['error'] = 'No se pudo completar el registro.';
-        //        header('Location: ' . BASE_URL . '/auth/register'); // Volver al registro
-        //        exit();
-        // 5. Si hay errores de validación o duplicados:
-        //    - Guardar error en $_SESSION['error']
-        //    - Opcional: guardar datos del formulario (excepto contraseñas) en sesión para repoblar
-        //    - header('Location: ' . BASE_URL . '/auth/register'); // Volver al registro
-        //    - exit();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+
+        if (empty($_POST['csrf_token_register']) || !hash_equals($_SESSION['csrf_token_register'] ?? '', $_POST['csrf_token_register'])) {
+            $_SESSION['error'] = 'Petición inválida o el token ha expirado (registro).';
+            header('Location: ' . BASE_URL . '/auth/register'); exit();
+        }
+
+        $username = trim($_POST['username'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $password_confirm = $_POST['password_confirm'] ?? '';
+        $_SESSION['form_data'] = ['username' => $username, 'email' => $email];
+        $errors = [];
+        if (empty($username) || strlen($username) < 3 || !preg_match('/^[a-zA-Z0-9_]+$/', $username)) { $errors[] = "Usuario inválido."; }
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = "Email inválido."; }
+        if (empty($password) || strlen($password) < 8) { $errors[] = "Contraseña muy corta (mín 8)."; }
+        if ($password !== $password_confirm) { $errors[] = "Las contraseñas no coinciden."; }
+        if (!empty($errors)) { $_SESSION['error'] = implode('<br>', $errors); header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+        try {
+            if ($this->userModel->findByEmail($email)) { $_SESSION['error'] = "Email ya registrado."; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+            if ($this->userModel->findByUsername($username)) { $_SESSION['error'] = "Usuario ya existe."; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+            $newUserId = $this->userModel->createUser($username, $email, $password, []);
+            if ($newUserId) { unset($_SESSION['form_data']); $_SESSION['success'] = '¡Registro exitoso! Inicia sesión.'; header('Location: ' . BASE_URL . '/auth/login'); exit();
+            } else { $_SESSION['error'] = 'Error al crear usuario.'; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+        } catch (\PDOException $e) { error_log("Error BD Reg: ".$e->getMessage()); $_SESSION['error'] = 'Error BD.'; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+          catch (\Exception $e) { error_log("Error Gen Reg: ".$e->getMessage()); $_SESSION['error'] = 'Error inesperado.'; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
     }
-    */
 }
