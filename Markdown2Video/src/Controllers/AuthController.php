@@ -35,10 +35,25 @@ class AuthController {
         error_log("PROCESS_LOGIN: Inicio del método.");
         error_log("PROCESS_LOGIN: (Validación CSRF DESHABILITADA para depuración)");
 
+        // 1. VALIDACIÓN DE TOKEN CSRF - ELIMINADA / COMENTADA
+        /*
+        if (empty($_POST['csrf_token_login']) || !hash_equals($_SESSION['csrf_token_login'] ?? '', $_POST['csrf_token_login'])) {
+            error_log("PROCESS_LOGIN_CSRF_DEBUG: ¡¡FALLO DE TOKEN!! Sesión: " . ($_SESSION['csrf_token_login'] ?? 'NO SET') . " | POST: " . ($_POST['csrf_token_login'] ?? 'NO SET'));
+            $_SESSION['error'] = 'Petición inválida o el token ha expirado (login).';
+            header('Location: ' . BASE_URL . '/auth/login');
+            exit();
+        }
+        error_log("PROCESS_LOGIN_CSRF_DEBUG: Token CSRF habría sido validado aquí.");
+        */
+
+
+        // 2. OBTENER Y VALIDAR ENTRADAS (email y password)
         $email = trim($_POST['email'] ?? '');
         $password_from_form = $_POST['password'] ?? '';
 
         error_log("PROCESS_LOGIN: Email del formulario: " . $email);
+        // No loguear la contraseña en texto plano en producción.
+        // error_log("PROCESS_LOGIN: Password del formulario (DEBUG): " . $password_from_form);
 
         if (empty($email) || empty($password_from_form)) {
             $_SESSION['error'] = 'El correo electrónico y la contraseña son obligatorios.';
@@ -51,12 +66,14 @@ class AuthController {
             exit();
         }
 
+        // 3. PROCESAR LOGIN (VERIFICACIÓN DE CREDENCIALES)
         try {
             error_log("PROCESS_LOGIN: Buscando usuario por email: " . $email);
             $user = $this->userModel->findByEmail($email);
 
             if ($user) {
                 error_log("PROCESS_LOGIN: Usuario encontrado en BD. ID: " . $user['id'] . ". Email: " . $user['email']);
+                // error_log("PROCESS_LOGIN_DEBUG_HASH: Hash en BD: " . $user['password_hash']);
 
                 $isPasswordCorrect = password_verify($password_from_form, $user['password_hash']);
                 error_log("PROCESS_LOGIN_DEBUG_VERIFY_RESULT: Resultado de password_verify(): " . ($isPasswordCorrect ? 'TRUE' : 'FALSE'));
