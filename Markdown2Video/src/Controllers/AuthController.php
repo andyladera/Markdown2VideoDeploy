@@ -19,16 +19,14 @@ class AuthController {
      * (SIN GENERACIÓN DE TOKEN CSRF)
      */
     public function showLoginForm(): void {
-        // $csrf_token ya no se genera ni se pasa aquí
         $base_url = BASE_URL;
         $pageTitle = "Iniciar Sesión";
         $error_message = $_SESSION['error'] ?? null;
         $success_message = $_SESSION['success'] ?? null;
-        unset($_SESSION['error'], $_SESSION['success']);
+        unset($_SESSION['error'], $_SESSION['success']); // Limpiar ambos mensajes
 
         $viewPath = VIEWS_PATH . 'auth/login.php';
         if (file_exists($viewPath)) {
-            // La vista login.php ya no debe esperar $csrf_token
             require_once $viewPath;
         } else {
             error_log("Vista de Login no encontrada: " . $viewPath);
@@ -41,28 +39,16 @@ class AuthController {
      * (SIN VALIDACIÓN DE TOKEN CSRF)
      */
     public function processLogin(): void {
-        error_log("PROCESS_LOGIN: Inicio del método.");
-        error_log("PROCESS_LOGIN: (Validación CSRF DESHABILITADA para depuración)");
+        // error_log("PROCESS_LOGIN: (Validación CSRF DESHABILITADA)"); // Log para depuración
 
-        // 1. VALIDACIÓN DE TOKEN CSRF - ELIMINADA
-        /*
-        if (empty($_POST['csrf_token_login']) || !hash_equals($_SESSION['csrf_token_login'] ?? '', $_POST['csrf_token_login'])) {
-            $_SESSION['error'] = 'Petición inválida o el token ha expirado (login).';
-            header('Location: ' . BASE_URL . '/auth/login');
-            exit();
-        }
-        */
-
-        // 2. OBTENER Y VALIDAR ENTRADAS (email y password)
         $email = trim($_POST['email'] ?? '');
         $password_from_form = $_POST['password'] ?? '';
 
         if (empty($email) || empty($password_from_form) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $_SESSION['error'] = 'Correo o contraseña inválidos.';
+            $_SESSION['error'] = 'Correo electrónico o contraseña inválidos.';
             header('Location: ' . BASE_URL . '/auth/login'); exit();
         }
 
-        // 3. PROCESAR LOGIN
         try {
             $user = $this->userModel->findByEmail($email);
             if ($user && password_verify($password_from_form, $user['password_hash'])) {
@@ -76,8 +62,15 @@ class AuthController {
                 $_SESSION['error'] = 'Correo electrónico o contraseña incorrectos.';
                 header('Location: ' . BASE_URL . '/auth/login'); exit();
             }
-        } catch (\PDOException $e) { /* ... manejo error BD ... */ }
-          catch (\Exception $e) { /* ... manejo error general ... */ }
+        } catch (\PDOException $e) {
+            error_log("Error de BD en AuthController::processLogin: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
+            $_SESSION['error'] = 'Error del servidor al intentar iniciar sesión.';
+            header('Location: ' . BASE_URL . '/auth/login'); exit();
+        } catch (\Exception $e) {
+            error_log("Error inesperado en AuthController::processLogin: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
+            $_SESSION['error'] = 'Ocurrió un error inesperado.';
+            header('Location: ' . BASE_URL . '/auth/login'); exit();
+        }
     }
 
     /**
@@ -97,29 +90,22 @@ class AuthController {
         exit();
     }
 
-    // --- MÉTODOS PARA REGISTRO (SIN PROTECCIÓN CSRF) ---
+    // --- MÉTODOS PARA REGISTRO (SIN CSRF y SIN REPOBLADO DE FORMULARIO) ---
   
     /**
      * Muestra el formulario de registro.
      * Ruta: GET /auth/register
-     * (SIN GENERACIÓN DE TOKEN CSRF)
+     * (SIN GENERACIÓN DE TOKEN CSRF NI DATOS DE FORMULARIO EN SESIÓN)
      */
     public function showRegisterForm(): void {
-        // $csrf_token ya no se genera ni se pasa aquí
-        // if (empty($_SESSION['csrf_token_register'])) { 
-        //     $_SESSION['csrf_token_register'] = bin2hex(random_bytes(32)); 
-        // }
-        // $csrf_token = $_SESSION['csrf_token_register']; 
-
         $base_url = BASE_URL;
         $pageTitle = "Registro de Nuevo Usuario";
         $error_message = $_SESSION['error'] ?? null;
-        $form_data = $_SESSION['form_data'] ?? []; 
-        unset($_SESSION['error'], $_SESSION['form_data']);
+        // $form_data ya no se pasa a la vista ni se recupera de la sesión
+        unset($_SESSION['error']); // Solo limpiar el error si existe
         
         $viewPath = VIEWS_PATH . 'auth/registro.php'; // Ajusta si es necesario
         if (file_exists($viewPath)) { 
-            // La vista registro.php ya no debe esperar $csrf_token
             require_once $viewPath; 
         }
         else { error_log("Vista registro no encontrada: " . $viewPath); http_response_code(500); echo "Error."; exit; }
@@ -128,28 +114,24 @@ class AuthController {
     /**
      * Procesa los datos del formulario de registro.
      * Ruta: POST /auth/register
-     * (SIN VALIDACIÓN DE TOKEN CSRF)
+     * (SIN VALIDACIÓN DE TOKEN CSRF Y SIN GUARDAR DATOS DE FORMULARIO EN SESIÓN PARA REPOBLAR)
      */
     public function processRegistration(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: ' . BASE_URL . '/auth/register'); exit(); }
 
-        // 1. VALIDACIÓN DE TOKEN CSRF - ELIMINADA
-        /*
-        if (empty($_POST['csrf_token_register']) || !hash_equals($_SESSION['csrf_token_register'] ?? '', $_POST['csrf_token_register'])) {
-            $_SESSION['error'] = 'Petición inválida o el token ha expirado (registro).';
-            header('Location: ' . BASE_URL . '/auth/register'); exit();
-        }
-        */
-        error_log("PROCESS_REGISTRATION: (Validación CSRF DESHABILITADA para depuración)");
+        // VALIDACIÓN DE TOKEN CSRF - ELIMINADA
+        // error_log("PROCESS_REGISTRATION: (Validación CSRF DESHABILITADA)");
 
-        // 2. Obtener y Sanear Datos del Formulario
+        // Obtener y Sanear Datos del Formulario
         $username = trim($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $password_confirm = $_POST['password_confirm'] ?? '';
-        $_SESSION['form_data'] = ['username' => $username, 'email' => $email];
+        
+        // Ya no guardamos $form_data en sesión
+        // $_SESSION['form_data'] = ['username' => $username, 'email' => $email];
 
-        // 3. Validación de Datos Rigurosa
+        // Validación de Datos Rigurosa
         $errors = [];
         if (empty($username) || strlen($username) < 3 || !preg_match('/^[a-zA-Z0-9_]+$/', $username)) { $errors[] = "Usuario inválido."; }
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = "Email inválido."; }
@@ -161,26 +143,35 @@ class AuthController {
             header('Location: ' . BASE_URL . '/auth/register'); exit(); 
         }
 
-        // 4. Interactuar con el Modelo para Crear Usuario
+        // Interactuar con el Modelo para Crear Usuario
         try {
-            if ($this->userModel->findByEmail($email)) { $_SESSION['error'] = "Email ya registrado."; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
-            if ($this->userModel->findByUsername($username)) { $_SESSION['error'] = "Usuario ya existe."; header('Location: ' . BASE_URL . '/auth/register'); exit(); }
+            if ($this->userModel->findByEmail($email)) { 
+                $_SESSION['error'] = "Este correo electrónico ya está registrado."; 
+                header('Location: ' . BASE_URL . '/auth/register'); exit(); 
+            }
+            if ($this->userModel->findByUsername($username)) { 
+                $_SESSION['error'] = "Este nombre de usuario ya está en uso."; 
+                header('Location: ' . BASE_URL . '/auth/register'); exit(); 
+            }
             
             $newUserId = $this->userModel->createUser($username, $email, $password, []);
             if ($newUserId) { 
-                unset($_SESSION['form_data']); 
+                // Ya no hay $form_data que limpiar de la sesión
+                // unset($_SESSION['form_data']); 
                 $_SESSION['success'] = '¡Registro exitoso! Inicia sesión.'; 
                 header('Location: ' . BASE_URL . '/auth/login'); exit();
             } else { 
-                $_SESSION['error'] = 'Error al crear usuario.'; 
+                $_SESSION['error'] = 'No se pudo completar el registro en este momento. Inténtalo de nuevo.'; 
                 header('Location: ' . BASE_URL . '/auth/register'); exit(); 
             }
         } catch (\PDOException $e) { 
             error_log("Error BD Reg: ".$e->getMessage(). "\nTrace: " . $e->getTraceAsString()); 
-            $_SESSION['error'] = 'Error BD.'; header('Location: ' . BASE_URL . '/auth/register'); exit(); 
+            $_SESSION['error'] = 'Ocurrió un error con la base de datos durante el registro.'; 
+            header('Location: ' . BASE_URL . '/auth/register'); exit(); 
         } catch (\Exception $e) { 
             error_log("Error Gen Reg: ".$e->getMessage(). "\nTrace: " . $e->getTraceAsString()); 
-            $_SESSION['error'] = 'Error inesperado.'; header('Location: ' . BASE_URL . '/auth/register'); exit(); 
+            $_SESSION['error'] = 'Ocurrió un error inesperado durante el proceso de registro.'; 
+            header('Location: ' . BASE_URL . '/auth/register'); exit(); 
         }
     }
 }

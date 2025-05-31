@@ -3,9 +3,7 @@
 $base_url = $base_url ?? '';
 $pageTitle = $pageTitle ?? 'Registro de Usuario';
 // La variable $csrf_token aquí es el valor de $_SESSION['csrf_token_register'] pasado por AuthController->showRegisterForm()
-$csrf_token = $csrf_token ?? ''; 
 $error_message = $error_message ?? null;
-$form_data = $form_data ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -27,17 +25,14 @@ $form_data = $form_data ?? [];
         <div class="login-form">   
             <?php if ($error_message): ?><p class="message error"><?php echo $error_message; ?></p><?php endif; ?>
             <form class="register-form" action="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/auth/register" method="POST">
-                <input type="hidden" name="csrf_token_register" value="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
                 
                 <div class="input-group">
                     <h2>Regístrate</h2>
                     <label for="username">Nombre de Usuario</label>
                     <input type="text" id="username" name="username" placeholder="Elige un nombre de usuario" required 
-                           value="<?php echo htmlspecialchars($form_data['username'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 
                     <label for="email">Correo Electrónico</label>
                     <input type="email" id="email" name="email" placeholder="tu@correo.com" required
-                           value="<?php echo htmlspecialchars($form_data['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                 </div>
                 <div class="input-group">
                     <label for="password">Contraseña</label>
