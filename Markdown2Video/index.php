@@ -162,7 +162,6 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
     }
 }
 
-console.log($controllerClassName, $methodToCall);
 
 // VERIFICAR Y EJECUTAR EL CONTROLADOR
 if (class_exists($controllerClassName)) {
