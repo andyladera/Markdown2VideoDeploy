@@ -7,8 +7,9 @@ env:
 on:
   push:
     branches:
-      - main  # Puedesconfigurar para que solo se ejecute al hacer push a la rama principal (o la que prefieras)
-
+      - main  # Puedes configurar para que solo se ejecute al hacer push a la rama principal (o la que prefieras)
+  workflow_dispatch:
+    
 jobs:
   release:
     name: Build and Release Package
