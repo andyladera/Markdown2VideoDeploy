@@ -159,7 +159,14 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
         $methodToCall = 'showPdfDownloadPage'; 
     } elseif ($actionName === 'force-download-pdf' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $methodToCall = 'forceDownloadPdf'; 
+    } elseif ($actionName === 'generate-marp-file' && $_SERVER['REQUEST_METHOD'] === 'POST') { // Nueva ruta para Marp
+    $methodToCall = 'generateMarpFile';
     }
+    // --- INICIO DE LA INTEGRACIÓN: NUEVA RUTA LOCAL ---
+    elseif ($actionName === 'generate-marp-file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $methodToCall = 'generateMarpFile';
+    }
+    // --- FIN DE LA INTEGRACIÓN ---
 }
 
 
@@ -187,14 +194,11 @@ if (class_exists($controllerClassName)) {
             call_user_func_array([$controllerInstance, $methodToCall], $params);
         } else {
             // Método no encontrado en el controlador
+            // Se usa la versión del código local que es más estable y correcta.
             error_log("Método no encontrado: {$controllerClassName}->{$methodToCall} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
             http_response_code(404);
             if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
-                //include VIEWS_PATH . 'error/404.php';
-                echo "<h1>Error en el metodo Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
-            echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
-            echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
-            echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
+                include VIEWS_PATH . 'error/404.php';
             } else {
                 echo "404 - Método o Recurso no encontrado."; // Mensaje de fallback
             }
@@ -217,14 +221,11 @@ if (class_exists($controllerClassName)) {
     }
 } else {
     // Clase de controlador no encontrada
+    // Se usa la versión del código local que es más estable y correcta.
     error_log("Clase de controlador no encontrada: {$controllerClassName} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
     http_response_code(404);
     if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
-        //include VIEWS_PATH . 'error/404.php';
-        echo "<h1>Error en la clase Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
-            echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
-            echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
-            echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
+        include VIEWS_PATH . 'error/404.php';
     } else {
         echo "404 - Página no encontrada."; // Mensaje de fallback
     }
