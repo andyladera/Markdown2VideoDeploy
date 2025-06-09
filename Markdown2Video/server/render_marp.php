@@ -65,7 +65,7 @@ if (isset($_MARP_OUTPUT_FORMAT, $_MARP_OUTPUT_FILE_PATH, $_MARP_MARKDOWN_CONTENT
     
     // Comando para generar el archivo de salida
     $command = sprintf(
-        '%s "%s" %s %s --allow-local-files --html -o %s',
+        '%s "%s" %s %s --allow-local-files -o %s',
         escapeshellcmd($nodeExecutablePath),
         $marpCliScriptPath, // Ya es realpath, no necesita escapeshellcmd si confiamos en la ruta
         escapeshellarg($tmpMdFile),
