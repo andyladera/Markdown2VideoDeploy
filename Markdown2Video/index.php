@@ -40,23 +40,6 @@ if (ENVIRONMENT === 'development') {
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);
-    ini_set('log_errors', 1); // Asegurar que el logueo esté activo
-
-    // Asegurarse de que el directorio 'logs' exista y sea escribible para desarrollo
-    if (!is_dir(ROOT_PATH . '/logs')) {
-        // Intentar crear el directorio
-        if (!mkdir(ROOT_PATH . '/logs', 0755, true) && !is_dir(ROOT_PATH . '/logs')) {
-            // Si la creación falla, PHP usará su log por defecto y este error_log irá allí
-            error_log("Advertencia DEV: No se pudo crear el directorio de logs: " . ROOT_PATH . '/logs');
-        }
-    }
-    // Establecer el archivo de log si el directorio existe y es escribible
-    if (is_dir(ROOT_PATH . '/logs') && is_writable(ROOT_PATH . '/logs')) {
-        ini_set('error_log', ROOT_PATH . '/logs/phperrors.log');
-    } else {
-        // Si no se puede escribir en el directorio de logs, PHP usará su log por defecto
-        error_log("Advertencia DEV: El directorio de logs (" . ROOT_PATH . "/logs) no es escribible o no existe. Los errores de PHP irán al log por defecto del servidor.");
-    }
 } else {
     ini_set('display_errors', 0);
     ini_set('display_startup_errors', 0);
