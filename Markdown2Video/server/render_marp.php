@@ -129,12 +129,104 @@ if (isset($_MARP_OUTPUT_FORMAT, $_MARP_OUTPUT_FILE_PATH, $_MARP_MARKDOWN_CONTENT
 function send_json_error_preview(int $statusCode, string $message, ?string $details = null): void {
     if (!headers_sent()) {
         http_response_code($statusCode);
-        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Type: application/json');
+
+    $response = ['success' => false];
+    $debug_details = [];
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        $response['error'] = 'Invalid request method.';
+        echo json_encode($response);
+        exit;
     }
-    $response = ['error' => $message];
-    if ($details !== null && (defined('ENVIRONMENT') && ENVIRONMENT === 'development')) {
-        $response['details'] = $details;
+
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    if (!isset($data['markdown'])) {
+        $response['error'] = 'No markdown content provided.';
+        echo json_encode($response);
+        exit;
     }
+
+    $markdown = $data['markdown'];
+
+    // Crear archivos temporales
+    $tempInputFile = tempnam(sys_get_temp_dir(), 'marp_in_') . '.md';
+    $tempOutputFile = tempnam(sys_get_temp_dir(), 'marp_out_') . '.pdf';
+    file_put_contents($tempInputFile, $markdown);
+
+    // --- INICIO DE LA LÓGICA DE DEPURACIÓN ---
+
+    // 1. Encontrar la ruta de Node.js
+    $node_path = trim(shell_exec('which node'));
+    if (empty($node_path)) {
+        if (file_exists('/usr/bin/node')) {
+            $node_path = '/usr/bin/node';
+        } else {
+            $node_path = 'node'; // Asumir que está en el PATH
+        }
+    }
+    $debug_details['node_path'] = $node_path;
+
+    // 2. Ejecutar el script para obtener la ruta de Chrome
+    $chromePathJs = __DIR__ . '/get_chrome_path.js';
+    $debug_details['chrome_path_script_path'] = $chromePathJs;
+    $debug_details['chrome_path_script_exists'] = file_exists($chromePathJs);
+
+    $chrome_path_command = escapeshellarg($node_path) . " " . escapeshellarg($chromePathJs);
+    $chromePathOutput = shell_exec($chrome_path_command . " 2>&1");
+    $chromePath = trim((string)$chromePathOutput);
+    $debug_details['chrome_path_script_output'] = $chromePath;
+
+    // 3. Verificar si la ruta de Chrome es válida
+    $chromePathExists = !empty($chromePath) && file_exists($chromePath);
+    $debug_details['chrome_path_found_and_exists'] = $chromePathExists;
+
+    // 4. Construir las variables de entorno
+    if (!$chromePathExists) {
+        $envVars = 'CHROME_NO_SANDBOX=true ';
+        $debug_details['env_vars_set'] = 'CHROME_NO_SANDBOX=true (Chrome path not found)';
+    } else {
+        $envVars = 'CHROME_PATH=' . escapeshellarg($chromePath) . ' CHROME_NO_SANDBOX=true ';
+        $debug_details['env_vars_set'] = 'CHROME_PATH=' . $chromePath . ' CHROME_NO_SANDBOX=true';
+    }
+
+    // 5. Encontrar la ruta de marp-cli
+    $marpCliPath = realpath(__DIR__ . '/../node_modules/.bin/marp');
+    $debug_details['marp_cli_path'] = $marpCliPath;
+    $debug_details['marp_cli_path_exists'] = (bool)$marpCliPath;
+
+    if (!$marpCliPath) {
+        $response['error'] = "Marp CLI not found. Ensure 'npm install' was successful.";
+        $response['debug_details'] = $debug_details;
+        echo json_encode($response);
+        unlink($tempInputFile);
+        if(file_exists($tempOutputFile)) unlink($tempOutputFile);
+        exit;
+    }
+
+    // 6. Construir y ejecutar el comando final
+    $command = "{$envVars}" . escapeshellarg($node_path) . " " . escapeshellarg($marpCliPath) . " " . escapeshellarg($tempInputFile) . " --pdf --o " . escapeshellarg($tempOutputFile) . " --allow-local-files";
+    $debug_details['full_command_executed'] = $command;
+
+    $marp_output = shell_exec($command . " 2>&1");
+    $debug_details['marp_cli_output'] = $marp_output;
+
+    // --- FIN DE LA LÓGICA DE DEPURACIÓN ---
+
+    if (file_exists($tempOutputFile) && filesize($tempOutputFile) > 0) {
+        $response['success'] = true;
+        $response['pdf_url'] = 'data:application/pdf;base64,' . base64_encode(file_get_contents($tempOutputFile));
+    } else {
+        $response['error'] = 'Error al generar el archivo PDF desde Marp. Verifique los detalles de depuración.';
+        $response['debug_details'] = $debug_details;
+    }
+
+    // Limpiar archivos temporales
+    unlink($tempInputFile);
+    unlink($tempOutputFile);
+
     echo json_encode($response);
 }
 
