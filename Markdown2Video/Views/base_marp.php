@@ -46,7 +46,7 @@ echo "</script>\n";
             <div class="button-container">
                 <button class="generate-btn" data-format="ppt">Generar PPT</button>
                 <button class="generate-btn" data-format="pdf">Generar PDF</button>
-                <button class="generate-btn" data-format="mp4">Generar Video MP4XD</button>
+                <button class="generate-btn" data-format="mp4">Generar Video MP4</button>
                 <button class="generate-btn" data-format="html">Generar HTML</button>
             </div>
         </div>
