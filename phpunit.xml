@@ -14,5 +14,8 @@
     <include>
       <directory suffix=".php">Markdown2Video/src/Models</directory>
     </include>
+    <report>
+        <html outputDirectory="docs/coverage"/>
+    </report>
   </coverage>
 </phpunit>
