@@ -8,8 +8,12 @@ use PDOException;
 class ImageModel {
     private PDO $pdo;
 
-    public function __construct(PDO $pdo) {
+    public function __construct(?PDO $pdo = null) {
         $this->pdo = $pdo;
+        if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+            header('Location: ' . BASE_URL . '/auth/login'); 
+            exit();
+        }
     }
 
     public function saveImage(int $userId, string $imageName, string $originalFilename, string $imageData, string $mimeType): bool {
