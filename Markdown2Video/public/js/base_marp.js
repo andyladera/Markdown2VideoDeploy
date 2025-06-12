@@ -1,4 +1,5 @@
 // public/js/base_marp.js
+const baseUrl = typeof window.BASE_APP_URL !== 'undefined' ? window.BASE_APP_URL : '';
 document.addEventListener('DOMContentLoaded', function() {
     const editorTextareaMarp = document.getElementById('editor-marp');
     const previewDivMarp = document.getElementById('ppt-preview');

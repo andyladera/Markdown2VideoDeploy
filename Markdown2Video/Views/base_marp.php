@@ -56,6 +56,10 @@ echo "</script>\n";
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/mode/markdown/markdown.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/addon/edit/continuelist.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/addon/display/placeholder.js"></script>
+    <script>
+        // Definir la URL base para que esté disponible en los scripts de JavaScript
+        window.BASE_APP_URL = "<?php echo BASE_URL; ?>";
+    </script>
     <script src="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/public/js/base_marp.js"></script>
 </body>
 </html>
