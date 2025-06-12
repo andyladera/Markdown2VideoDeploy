@@ -18,34 +18,38 @@ jobs:
         with:
           php-version: "8.2"
           coverage: pcov
-    
+
       - name: 🔓 Permitir plugin infection/extension-installer
         working-directory: Markdown2Video
         run: composer config --no-plugins allow-plugins.infection/extension-installer true
 
-      - name: 📦 Instalar dependencias (incluye PHPUnit e Infection)
+      - name: 📦 Instalar dependencias (PHPUnit + Infection)
         working-directory: Markdown2Video
         run: |
           composer install --prefer-dist --no-progress
-          # Verifica si infection está instalado, si no lo instala
+          if [ ! -f vendor/bin/phpunit ]; then
+            composer require --dev phpunit/phpunit
+          fi
           if [ ! -f vendor/bin/infection ]; then
             composer require --dev infection/infection
           fi
 
       - name: 🧪 Ejecutar pruebas y generar cobertura
+        working-directory: Markdown2Video
         run: |
-            mkdir -p coverage
-            vendor/bin/phpunit --coverage-xml=coverage
+          mkdir -p coverage
+          vendor/bin/phpunit --coverage-xml=coverage
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
+        working-directory: Markdown2Video
         run: |
-            vendor/bin/infection --coverage=coverage --logger-html=mutation-report
+          vendor/bin/infection --coverage=coverage --logger-html=infection-report
 
       - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report
-          path: infection-report/
+          path: Markdown2Video/infection-report/
 
   deploy-ghpages:
     needs: infection
