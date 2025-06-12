@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <?php
 namespace Dales\Markdown2video\Controllers;
 
@@ -258,6 +259,276 @@ class MarkdownController {
                                 $resizedImage = imagecreatetruecolor($newWidthInt, $newHeightInt);
                                 
                                 if ($mimeType == 'image/png' || $mimeType == 'image/gif') {
+=======
+<?php
+namespace Dales\Markdown2video\Controllers;
+
+use PDO;
+use Dompdf\Dompdf;     
+use Dompdf\Options;  
+use Dales\Markdown2video\Models\ImageModel; 
+
+class MarkdownController {
+    private ?PDO $pdo;
+
+    // Se añade la propiedad para guardar la instancia del ImageModel.
+    private ?ImageModel $imageModel = null;
+
+    public function __construct(?PDO $pdo = null) {
+        $this->pdo = $pdo;
+        
+        if ($this->pdo) {
+            $this->imageModel = new ImageModel($this->pdo);
+        }
+
+        if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+            header('Location: ' . BASE_URL . '/auth/login'); 
+            exit();
+        }
+    }
+
+    /**
+     */
+    // Reemplaza el método create() en src/Controllers/MarkdownController.php
+
+    public function create(): void {
+        $base_url = BASE_URL;
+        $pageTitle = "Editor de Presentación (Markdown)";
+        
+        // Token para PDF
+        if (empty($_SESSION['csrf_token_generate_pdf'])) { 
+            $_SESSION['csrf_token_generate_pdf'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token_generate_pdf = $_SESSION['csrf_token_generate_pdf'];
+
+        // --- CORRECCIÓN: Se añade la creación del token para acciones de imágenes ---
+        if (empty($_SESSION['csrf_token_image_action'])) { 
+            $_SESSION['csrf_token_image_action'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token_image_action = $_SESSION['csrf_token_image_action'];
+
+        $viewPath = VIEWS_PATH . 'base_markdown.php';
+        if (file_exists($viewPath)) {
+            // Ahora ambas variables ($csrf_token_generate_pdf y $csrf_token_image_action)
+            // existen y se pasan a la vista.
+            require_once $viewPath;
+        } else {
+            $this->showErrorPage("Vista del editor Markdown no encontrada: " . $viewPath);
+        }
+    }
+
+    /**
+     * Muestra el editor para Marp.
+     * Ruta: GET /markdown/marp-editor
+     */
+    public function showMarpEditor(): void {
+        $base_url = BASE_URL;
+        $pageTitle = "Editor de Presentación (Marp)";
+        if (empty($_SESSION['csrf_token_marp_generate'])) { // Token diferente si es necesario
+            $_SESSION['csrf_token_marp_generate'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token_marp_generate = $_SESSION['csrf_token_marp_generate'];
+        
+        $viewPath = VIEWS_PATH . 'base_marp.php'; // Asume que es Views/base_marp.php
+        if (file_exists($viewPath)) {
+            require_once $viewPath;
+        } else {
+            $this->showErrorPage("Vista del editor Marp no encontrada: " . $viewPath);
+        }
+    }
+    
+    /**
+     */
+    public function renderMarpPreview(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['markdown'])) {
+            http_response_code(400); header('Content-Type: application/json');
+            echo json_encode(['error' => 'Petición incorrecta o falta contenido markdown.']);
+            exit;
+        }
+        ob_start();
+        $renderScriptPath = ROOT_PATH . '/server/render_marp.php';
+        if (file_exists($renderScriptPath)) {
+            include $renderScriptPath;
+        } else {
+            error_log("Script render_marp.php no encontrado: " . $renderScriptPath);
+            if (!headers_sent()) { http_response_code(500); header('Content-Type: application/json'); }
+            echo json_encode(['error' => 'Error interno (script de renderizado no encontrado).']);
+        }
+        $output = ob_get_clean();
+        echo $output; 
+        exit;
+    }
+
+    // --- MÉTODOS PARA IMÁGENES (estos ya estaban bien, ahora funcionarán) ---
+
+    public function uploadImage(): void {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Petición inválida.']);
+            exit;
+        }
+        
+        if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_image_action'], $_POST['csrf_token'])) {
+             http_response_code(403);
+             echo json_encode(['success' => false, 'error' => 'Error de seguridad (CSRF).']);
+             exit;
+        }
+
+        if (!isset($_FILES['image_file']) || $_FILES['image_file']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'error' => 'Error al subir el archivo.']);
+            exit;
+        }
+        if (empty($_POST['image_name'])) {
+            echo json_encode(['success' => false, 'error' => 'El nombre de la imagen es obligatorio.']);
+            exit;
+        }
+
+        $imageName = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['image_name']);
+        if (empty($imageName)) {
+            echo json_encode(['success' => false, 'error' => 'El nombre de la imagen contiene caracteres no válidos.']);
+            exit;
+        }
+        
+        $file = $_FILES['image_file'];
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (!in_array($file['type'], $allowedMimes) || $file['size'] > 5 * 1024 * 1024) { // 5MB Limit
+            echo json_encode(['success' => false, 'error' => 'Archivo no permitido o demasiado grande (máx 5MB).']);
+            exit;
+        }
+
+        $imageData = file_get_contents($file['tmp_name']);
+        if ($this->imageModel->saveImage($_SESSION['user_id'], $imageName, $file['name'], $imageData, $file['type'])) {
+            echo json_encode(['success' => true, 'message' => 'Imagen subida correctamente.']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'No se pudo guardar la imagen. El nombre ya podría existir.']);
+        }
+        exit;
+    }
+
+    public function getUserImages(): void {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode([]);
+            exit;
+        }
+        $images = $this->imageModel->getImagesByUserId($_SESSION['user_id']);
+        echo json_encode($images);
+        exit;
+    }
+
+
+    public function deleteImage(): void {
+        // Establecemos la cabecera JSON al principio.
+        header('Content-Type: application/json');
+
+        try {
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Petición inválida.']);
+                exit;
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            // Si el JSON está mal formado o vacío
+            if (json_last_error() !== JSON_ERROR_NONE || !$data) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Datos de entrada inválidos.']);
+                exit;
+            }
+            
+            if (empty($data['csrf_token']) || !hash_equals($_SESSION['csrf_token_image_action'], $data['csrf_token'])) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Error de seguridad (CSRF).']);
+                exit;
+            }
+            
+            if (empty($data['id_image']) || !is_numeric($data['id_image'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Falta el ID de la imagen o es inválido.']);
+                exit;
+            }
+
+            // Si todas las validaciones pasan, intentamos borrar.
+            $wasDeleted = $this->imageModel->deleteImageByIdAndUserId((int)$data['id_image'], $_SESSION['user_id']);
+
+            if ($wasDeleted) {
+                // Éxito real
+                http_response_code(200);
+                echo json_encode(['success' => true, 'message' => 'Imagen eliminada correctamente.']);
+            } else {
+                // La consulta se ejecutó pero no borró nada (ID no encontrado o no pertenece al usuario)
+                http_response_code(404);
+                echo json_encode(['success' => false, 'error' => 'No se pudo eliminar la imagen: no se encontró o no te pertenece.']);
+            }
+
+        } catch (\Throwable $e) {
+            // Capturamos cualquier otro error inesperado
+            error_log("Error en deleteImage: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Ocurrió un error inesperado en el servidor.']);
+        }
+        
+        // El exit ya no es estrictamente necesario aquí si no hay más código, pero es buena práctica.
+        exit;
+    }
+
+    /**
+     */
+    public function generatePdfFromHtml(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['html_content'])) {
+            http_response_code(400); header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Petición incorrecta o falta contenido HTML.']);
+            exit;
+        }
+        if (empty($_POST['csrf_token_generate_pdf']) || !hash_equals($_SESSION['csrf_token_generate_pdf'] ?? '', $_POST['csrf_token_generate_pdf'])) {
+            http_response_code(403); header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Token CSRF inválido o faltante.']);
+            exit;
+        }
+
+        try {
+            $htmlContent = $_POST['html_content'];
+            $userId = $_SESSION['user_id'];
+            $pattern = '/<img src="([^"]*\/image\/serve\/([^"]+))"/i';
+            
+            $callback = function ($matches) use ($userId) {
+                $originalSrc = $matches[1];
+                $imageName = urldecode($matches[2]);
+                $imageDetails = $this->imageModel->getImageByNameAndUserId($imageName, $userId);
+
+                if ($imageDetails) {
+                    $imageData = $imageDetails['image_data'];
+                    $mimeType = $imageDetails['mime_type'];
+                    $finalImageData = $imageData; 
+
+                    if (extension_loaded('gd')) {
+                        $sourceImage = @imagecreatefromstring($imageData);
+
+                        if ($sourceImage !== false) {
+                            $maxImageWidthInPdf = 650; 
+                            $originalWidth = imagesx($sourceImage);
+                            
+                            if ($originalWidth > $maxImageWidthInPdf) {
+                                $originalHeight = imagesy($sourceImage);
+                                
+                                // --- CORRECCIÓN DE LA FÓRMULA ---
+                                $ratio = $originalHeight / $originalWidth;
+                                $newWidth = $maxImageWidthInPdf;
+                                $newHeight = $newWidth * $ratio;
+
+                                // --- CORRECCIÓN CLAVE: Redondeamos los valores a enteros ---
+                                $newWidthInt = (int) round($newWidth);
+                                $newHeightInt = (int) round($newHeight);
+                                
+                                $resizedImage = imagecreatetruecolor($newWidthInt, $newHeightInt);
+                                
+                                if ($mimeType == 'image/png' || $mimeType == 'image/gif') {
+>>>>>>> 78d613e6860e10d84c166df488bfa4dd977384f0
                                     imagealphablending($resizedImage, false);
                                     imagesavealpha($resizedImage, true);
                                     $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
