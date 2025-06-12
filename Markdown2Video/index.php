@@ -150,10 +150,6 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
     } elseif ($actionName === 'render-marp-preview' && $_SERVER['REQUEST_METHOD'] === 'POST') { 
         $methodToCall = 'renderMarpPreview'; 
     } 
-    // --- RUTA PARA GENERAR ARCHIVOS DESDE MARP (PDF, PPTX) ---
-    elseif ($actionName === 'generate-file' && $_SERVER['REQUEST_METHOD'] === 'POST') { 
-        $methodToCall = 'generateFile'; 
-    }
     // --- RUTAS PARA GENERAR PDF DESDE HTML DEL PREVIEW ---
     elseif ($actionName === 'generate-pdf-from-html' && $_SERVER['REQUEST_METHOD'] === 'POST') { 
         $methodToCall = 'generatePdfFromHtml'; 
