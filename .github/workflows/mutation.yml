@@ -1,4 +1,4 @@
-name: Mutation Testing
+name: Mutation Testing and Deployment
 
 on:
   push:
@@ -10,25 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: 📥 Checkout del código
         uses: actions/checkout@v4
 
-      - name: Set up PHP
+      - name: ⚙️ Configurar PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
           coverage: pcov
 
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress
+      - name: 📦 Instalar dependencias (incluye PHPUnit e Infection)
+        run: |
+          composer install --prefer-dist --no-progress
+          # Verifica si infection está instalado, si no lo instala
+          if [ ! -f vendor/bin/infection ]; then
+            composer require --dev infection/infection
+          fi
+          # Verifica si infection.json existe, si no lo genera
+          if [ ! -f infection.json ]; then
+            vendor/bin/infection --init --no-interaction
+          fi
 
-      - name: Run Infection mutation tests
+      - name: 🧪 Ejecutar pruebas de mutación
         run: |
           vendor/bin/infection --coverage=coverage --formatter=html
         env:
           INFECTION_MIN_MUTATION_SCORE: 60
 
-      - name: Upload mutation report artifact
+      - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report
@@ -40,20 +49,20 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Download mutation report artifact
+      - name: 📦 Descargar artefacto del reporte
         uses: actions/download-artifact@v4
         with:
           name: mutation-report
           path: reports/mutation
 
-      - name: Deploy to GitHub Pages
+      - name: 🚀 Publicar en GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: reports
-          destination_dir: reports # para dejarlo en /reports/
-          keep_files: true # NO borra otros reportes en gh-pages
+          destination_dir: reports
+          keep_files: true
