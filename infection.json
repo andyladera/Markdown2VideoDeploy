@@ -8,7 +8,7 @@
   },
   "tmpDir": ".infection",
   "phpUnit": {
-    "configDir": "Markdown2Video/vendor/bin/phpunit"
+    "configDir": "."
   },
   "mutators": {
     "@default": true
