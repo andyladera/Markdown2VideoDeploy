@@ -9,8 +9,16 @@ use Dales\Markdown2video\Models\ImageModel;
 class MarkdownController {
     private ?PDO $pdo;
 
+    // Se añade la propiedad para guardar la instancia del ImageModel.
+    private ?ImageModel $imageModel = null;
+
     public function __construct(?PDO $pdo = null) {
         $this->pdo = $pdo;
+        
+        if ($this->pdo) {
+            $this->imageModel = new ImageModel($this->pdo);
+        }
+
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
             header('Location: ' . BASE_URL . '/auth/login'); 
             exit();
