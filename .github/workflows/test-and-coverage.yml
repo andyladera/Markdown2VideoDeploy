@@ -1,0 +1,57 @@
+name: PHPUnit & Coverage to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, dom, pdo, pdo_sqlite
+        coverage: xdebug
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Run PHPUnit with coverage
+      run: |
+        mkdir -p docs/coverage
+        ./vendor/bin/phpunit --coverage-html docs/coverage
+
+  deploy-gh-pages:
+    needs: run-tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+
+    - name: Upload docs folder
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: docs
+
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v3
