@@ -164,6 +164,14 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
     } elseif ($actionName === 'force-download-pdf' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $methodToCall = 'forceDownloadPdf'; 
     }
+    // --- ¡NUEVAS RUTAS DE IMÁGENES EN MARKDOWNCONTROLLER! ---
+    elseif ($actionName === 'upload-image' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $methodToCall = 'uploadImage';
+    } elseif ($actionName === 'get-user-images' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        $methodToCall = 'getUserImages';
+    } elseif ($actionName === 'delete-image' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $methodToCall = 'deleteImage';
+    }
 }
 
 
@@ -175,7 +183,8 @@ if (class_exists($controllerClassName)) {
         $controllersRequiringPdo = [
             'Dales\\Markdown2video\\Controllers\\AuthController',
             'Dales\\Markdown2video\\Controllers\\DashboardController',
-            'Dales\\Markdown2video\\Controllers\\MarkdownController', // MarkdownController necesita PDO
+            'Dales\\Markdown2video\\Controllers\\MarkdownController',
+            'Dales\\Markdown2video\\Controllers\\ImageController',
         ];
 
         if (in_array($controllerClassName, $controllersRequiringPdo)) {
