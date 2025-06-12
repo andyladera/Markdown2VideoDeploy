@@ -12,7 +12,7 @@
 
   <coverage processUncoveredFiles="true">
     <include>
-      <directory suffix=".php">Markdown2Video/src</directory>
+      <directory suffix=".php">Markdown2Video/src/Models</directory>
     </include>
   </coverage>
 </phpunit>

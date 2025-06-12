@@ -60,7 +60,7 @@ class UserModelTest extends TestCase
         $this->stmt->expects($this->once())->method('execute')->willReturn(true);
         $this->stmt->method('rowCount')->willReturn(1);
 
-        $data = ['nombre' => 'NuevoNombre'];
+        $data = ['username' => 'NuevoNombre'];
         $result = $this->userModel->updateUser(1, $data);
 
         $this->assertTrue($result);
