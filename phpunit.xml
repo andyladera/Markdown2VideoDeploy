@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit bootstrap="Markdown2Video/vendor/autoload.php"
-         colors="true"
-         verbose="true"
-         beStrictAboutTestsThatDoNotTestAnything="false">
-  
+  colors="true"
+  verbose="true"
+  beStrictAboutTestsThatDoNotTestAnything="false">
+
   <testsuites>
     <testsuite name="Project Test Suite">
       <directory>tests</directory>
     </testsuite>
   </testsuites>
-
-  <coverage processUncoveredFiles="true">
-    <include>
-      <directory suffix=".php">Markdown2Video/src/Models</directory>
-    </include>
-    <report>
-        <html outputDirectory="docs/coverage"/>
-    </report>
-  </coverage>
 </phpunit>
+
+<coverage processUncoveredFiles="true">
+  <include>
+    <directory suffix=".php">Markdown2Video/src/Models</directory>
+  </include>
+  <report>
+    <html outputDirectory="docs/coverage" />
+    <xml outputDirectory="coverage" />
+  </report>
+</coverage>
