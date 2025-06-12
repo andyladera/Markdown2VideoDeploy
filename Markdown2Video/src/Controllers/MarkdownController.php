@@ -186,5 +186,102 @@ class MarkdownController {
         } else { exit; }
     }
 
+    /**
+     * Genera un archivo (PDF, PPTX) desde contenido Markdown usando Marp CLI.
+     * Ruta: POST /markdown/generate-file
+     */
+    public function generateFile(): void {
+        // 1. Validar Petición
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['markdown_content']) || !isset($_POST['format'])) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Petición incorrecta.']);
+            exit;
+        }
+
+        // 2. Validar Token CSRF
+        if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_marp_generate'] ?? '', $_POST['csrf_token'])) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Token de seguridad inválido. Por favor, recargue la página.']);
+            exit;
+        }
+
+        $markdownContent = $_POST['markdown_content'];
+        $format = strtolower($_POST['format']);
+
+        // 3. Validar Formato
+        if ($format !== 'pdf') { // Por ahora solo soportamos PDF
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Formato no soportado.']);
+            exit;
+        }
+
+        // 4. Preparar Archivos y Directorios
+        $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
+        $userTempDir = ROOT_PATH . '/public/temp_files/marp/' . $userIdForPath . '/';
+
+        if (!is_dir($userTempDir) && !mkdir($userTempDir, 0775, true)) {
+            error_log("Error: No se pudo crear el directorio temporal: " . $userTempDir);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Error interno del servidor al preparar archivos.']);
+            exit;
+        }
+
+        $fileBasename = 'marp_' . time() . '_' . bin2hex(random_bytes(4));
+        $inputMdFile = $userTempDir . $fileBasename . '.md';
+        $outputFile = $userTempDir . $fileBasename . '.' . $format;
+        $outputFilename = basename($outputFile);
+
+        // 5. Guardar el contenido Markdown en un archivo temporal
+        if (file_put_contents($inputMdFile, $markdownContent) === false) {
+            error_log("Error: No se pudo escribir en el archivo temporal: " . $inputMdFile);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Error interno del servidor al guardar el contenido.']);
+            exit;
+        }
+
+        // 6. Ejecutar Marp CLI
+        $command = 'npx @marp-team/marp-cli@latest ' . escapeshellarg($inputMdFile) . ' --o ' . escapeshellarg($outputFile) . ' --pdf --allow-local-files';
+        
+        $exec_output = null;
+        $exec_return_code = null;
+        exec($command . ' 2>&1', $exec_output, $exec_return_code);
+
+        // 7. Limpiar archivo Markdown de entrada
+        if (file_exists($inputMdFile)) {
+            unlink($inputMdFile);
+        }
+
+        // 8. Verificar el resultado y responder
+        if ($exec_return_code !== 0 || !file_exists($outputFile)) {
+            error_log("Error al ejecutar Marp CLI. Código: {$exec_return_code}. Salida: " . implode("\n", $exec_output));
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false, 
+                'error' => 'No se pudo generar el archivo PDF desde Marp.',
+                'debug' => (ENVIRONMENT === 'development' ? $exec_output : null)
+            ]);
+            exit;
+        }
+
+        // 9. Guardar información en sesión para la descarga
+        $_SESSION['pdf_download_file'] = $outputFilename;
+        $_SESSION['pdf_download_full_path'] = $outputFile;
+
+        // 10. Enviar respuesta exitosa
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => 'PDF generado desde Marp. Abriendo página de descarga...',
+            'downloadPageUrl' => '/markdown/download-page/' . urlencode($outputFilename)
+        ]);
+        exit;
+    }
+
     private function showErrorPage(string $logMessage, string $userMessage = "Error."): void { /* ... */ }
 }
