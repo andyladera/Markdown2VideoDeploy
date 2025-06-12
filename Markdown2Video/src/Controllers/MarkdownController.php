@@ -377,6 +377,84 @@ class MarkdownController {
         }
     }
 
+    public function generatePdfFromMarp()
+    {
+        // 1. Obtener el contenido del cuerpo de la solicitud (request body)
+        $jsonPayload = file_get_contents('php://input');
+        $data = json_decode($jsonPayload, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($data['markdown'])) {
+            http_response_code(400); // Bad Request
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Solicitud inválida o contenido Markdown faltante.']);
+            return;
+        }
+
+        $markdownContent = $data['markdown'];
+
+        // 2. Crear archivos temporales únicos para Markdown y PDF
+        $tempDir = sys_get_temp_dir();
+        $uniqueId = uniqid('marp_');
+        $markdownFilePath = $tempDir . DIRECTORY_SEPARATOR . $uniqueId . '.md';
+        $pdfFilePath = $tempDir . DIRECTORY_SEPARATOR . $uniqueId . '.pdf';
+
+        // 3. Guardar el contenido Markdown en el archivo temporal
+        if (file_put_contents($markdownFilePath, $markdownContent) === false) {
+            http_response_code(500); // Internal Server Error
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'No se pudo guardar el archivo Markdown temporal.']);
+            return;
+        }
+
+        // 4. Construir y ejecutar el comando de Marp CLI
+        // Usamos npx para asegurar que se pueda encontrar el ejecutable de marp-cli
+        // --allow-local-files es importante para que Marp pueda acceder a recursos locales si los hubiera.
+        $command = 'npx @marp-team/marp-cli@latest ' . escapeshellarg($markdownFilePath) . ' --pdf -o ' . escapeshellarg($pdfFilePath) . ' --allow-local-files';
+        
+        // Redirigir stderr a stdout para capturar errores
+        $command .= ' 2>&1';
+        
+        exec($command, $output, $return_var);
+
+        // 5. Verificar si la conversión fue exitosa
+        if ($return_var !== 0) {
+            // Si hubo un error, limpiar y notificar
+            unlink($markdownFilePath);
+            http_response_code(500);
+            $errorDetails = implode("\n", $output);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Error al generar el PDF con Marp CLI.', 'details' => $errorDetails]);
+            return;
+        }
+
+        // 6. Enviar el PDF generado al cliente para su descarga
+        if (file_exists($pdfFilePath)) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="presentacion.pdf"');
+            header('Content-Length: ' . filesize($pdfFilePath));
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+            
+            // Limpiar el buffer de salida antes de enviar el archivo
+            ob_clean();
+            flush();
+
+            readfile($pdfFilePath);
+
+            // 7. Limpiar los archivos temporales después de la descarga
+            unlink($markdownFilePath);
+            unlink($pdfFilePath);
+            exit;
+        } else {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'El archivo PDF no se encontró después de la conversión.']);
+            // Limpiar el archivo markdown de entrada
+            unlink($markdownFilePath);
+        }
+    }
+
     private function showErrorPage(string $logMessage, string $userMessage = "Error."): void { /* ... */ }
 
 }
