@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const csrfTokenPdfGenerate = typeof window.CSRF_TOKEN_PDF_GENERATE !== 'undefined' ? window.CSRF_TOKEN_PDF_GENERATE : '';
     const csrfTokenImageAction = typeof window.CSRF_TOKEN_IMAGE_ACTION !== 'undefined' ? window.CSRF_TOKEN_IMAGE_ACTION : '';
 
+    // =========================================================================
+    // === INICIALIZACIÓN DE CODEMIRROR ========================================
+    // =========================================================================
     if (!editorTextarea) {
         console.error("JS ERROR: Textarea #editor no encontrado.");
         return;
@@ -35,32 +38,23 @@ document.addEventListener('DOMContentLoaded', function () {
     function refreshEditor() { if (editorInstance) { editorInstance.setSize('100%', '100%'); editorInstance.refresh(); } }
     setTimeout(refreshEditor, 100);
 
-    // --- Bloque CORREGIDO para soportar imágenes locales y de internet ---
+    // =========================================================================
+    // === CONFIGURACIÓN DE MARKED.JS PARA IMÁGENES ============================
+    // =========================================================================
     if (typeof marked !== 'undefined') {
         const renderer = new marked.Renderer();
-        const originalImageRenderer = renderer.image; // Guardamos la función original
+        const originalImageRenderer = renderer.image; 
 
         renderer.image = (href, title, text) => {
-            // Obtenemos la URL de forma segura, ya sea un string o un objeto.
             const url = typeof href === 'string' ? href : (href.href || '');
-
-            // CASO 1: Es una de nuestras imágenes locales.
             if (url.startsWith('img:')) {
                 const imageName = url.substring(4);
                 const imageUrl = `${baseUrlJs}/image/serve/${encodeURIComponent(imageName)}`;
-                // Devolvemos la etiqueta <img> con la ruta a nuestro controlador.
                 return `<img src="${imageUrl}" alt="${text}" ${title ? `title="${title}"` : ''}>`;
             }
-
-            // CASO 2: Es una imagen de internet.
-            // Verificamos si la URL es una cadena y si empieza con http.
-            if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-                // Devolvemos la etiqueta <img> con la URL original de internet.
+            if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('//'))) {
                 return `<img src="${url}" alt="${text}" ${title ? `title="${title}"` : ''}>`;
             }
-            
-            // CASO 3 (Fallback): Si no es ninguno de los anteriores, dejamos que marked.js
-            // maneje la situación con su lógica original.
             return originalImageRenderer.call(renderer, href, title, text);
         };
         
@@ -83,21 +77,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (editorInstance) { editorInstance.on("change", updateMarkdownPreview); setTimeout(updateMarkdownPreview, 150); }
     
+    // =========================================================================
+    // === LÓGICA DE INTERFAZ (MODOS Y MODAL) =================================
+    // =========================================================================
     if (modeSelect) {
         modeSelect.addEventListener("change", function () {
             const selectedMode = this.value;
             if (selectedMode === "marp") {
                 window.location.href = baseUrlJs + '/markdown/marp-editor';
-            } else if (selectedMode === "markdown") {
-                console.log("JS: Modo Markdown seleccionado.");
-                if (editorInstance) updateMarkdownPreview();
             }
         });
     }
-
-    // =========================================================================
-    // --- LÓGICA DEL MODAL, SUBIDA Y GALERÍA DE IMÁGENES =======================
-    // =========================================================================
 
     function showStatusMessage(message, isSuccess) {
         if (!uploadStatusDiv) return;
@@ -107,42 +97,38 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => { uploadStatusDiv.style.display = 'none'; }, 5000);
     }
 
-    // En public/js/base_markdown.js
+    async function fetchAndDisplayImages() {
+        if (!imageGallery) return;
+        imageGallery.innerHTML = '<div class="gallery-spinner"></div>';
+        try {
+            const response = await fetch(baseUrlJs + '/markdown/get-user-images');
+            if (!response.ok) throw new Error('No se pudo cargar la galería. (Error: ' + response.status + ')');
+            
+            const images = await response.json();
+            imageGallery.innerHTML = '';
+            
+            if (images.length === 0) {
+                imageGallery.innerHTML = '<p>No has subido ninguna imagen todavía.</p>';
+                return;
+            }
 
-async function fetchAndDisplayImages() {
-    if (!imageGallery) return;
-    imageGallery.innerHTML = '<div class="gallery-spinner"></div>';
-    try {
-        const response = await fetch(baseUrlJs + '/markdown/get-user-images');
-        if (!response.ok) throw new Error('No se pudo cargar la galería. (Error: ' + response.status + ')');
-        
-        const images = await response.json();
-        imageGallery.innerHTML = '';
-        
-        if (images.length === 0) {
-            imageGallery.innerHTML = '<p>No has subido ninguna imagen todavía.</p>';
-            return;
+            images.forEach(img => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                item.innerHTML = `
+                    <img src="${baseUrlJs}/image/serve/${encodeURIComponent(img.image_name)}" alt="${img.image_name}" loading="lazy">
+                    <div class="gallery-item-name">${img.image_name}</div>
+                    <div class="gallery-item-actions">
+                        <button class="copy" title="Copiar sintaxis" data-name="${img.image_name}"><i class="fa-solid fa-copy"></i></button>
+                        <button class="delete" title="Eliminar" data-id="${img.id_image}"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+                imageGallery.appendChild(item);
+            });
+        } catch (error) {
+            imageGallery.innerHTML = `<p style="color: #842029;">${error.message}</p>`;
         }
-
-        images.forEach(img => {
-            const item = document.createElement('div');
-            item.className = 'gallery-item';
-            // --- ¡CORRECCIÓN AQUÍ! ---
-            // Nos aseguramos de que el data-id se cree con 'img.id_image'
-            item.innerHTML = `
-                <img src="${baseUrlJs}/image/serve/${encodeURIComponent(img.image_name)}" alt="${img.image_name}" loading="lazy">
-                <div class="gallery-item-name">${img.image_name}</div>
-                <div class="gallery-item-actions">
-                    <button class="copy" title="Copiar sintaxis" data-name="${img.image_name}"><i class="fa-solid fa-copy"></i></button>
-                    <button class="delete" title="Eliminar" data-id="${img.id_image}"><i class="fa-solid fa-trash-can"></i></button>
-                </div>
-            `;
-            imageGallery.appendChild(item);
-        });
-    } catch (error) {
-        imageGallery.innerHTML = `<p style="color: #842029;">${error.message}</p>`;
     }
-}
 
     if (openModalBtn && imageModal) {
         openModalBtn.addEventListener('click', () => {
@@ -164,114 +150,77 @@ async function fetchAndDisplayImages() {
             formData.append('csrf_token', csrfTokenImageAction);
             
             const submitBtn = uploadForm.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Subiendo...';
-
+            submitBtn.disabled = true; submitBtn.textContent = 'Subiendo...';
             try {
-                const response = await fetch(baseUrlJs + '/markdown/upload-image', {
-                    method: 'POST',
-                    body: formData,
-                });
+                const response = await fetch(baseUrlJs + '/markdown/upload-image', { method: 'POST', body: formData });
                 const result = await response.json();
                 if (response.ok && result.success) {
                     showStatusMessage(result.message, true);
                     uploadForm.reset();
                     fetchAndDisplayImages();
-                } else {
-                    throw new Error(result.error || 'Ocurrió un error desconocido.');
-                }
+                } else { throw new Error(result.error || 'Ocurrió un error desconocido.'); }
             } catch (error) {
                 showStatusMessage(`Error: ${error.message}`, false);
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Subir Imagen';
+                submitBtn.disabled = false; submitBtn.textContent = 'Subir Imagen';
             }
         });
     }
     
-    // En public/js/base_markdown.js
+    if (imageGallery) {
+        imageGallery.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
 
-// Reemplaza este listener en public/js/base_markdown.js
-
-if (imageGallery) {
-    imageGallery.addEventListener('click', async (e) => {
-        const button = e.target.closest('button');
-        if (!button) return;
-
-        if (button.classList.contains('copy')) {
-            const imageName = button.dataset.name;
-            const syntax = `![texto descriptivo](img:${imageName})`;
-
-            // --- ESTA ES LA LÓGICA DE CALIDAD PARA HTTP ---
-
-            // PASO 1: Detección de Funcionalidad (Feature Detection)
-            // Comprobamos si la API segura del portapapeles está disponible.
-            // Esto es una buena práctica porque no asumimos que el navegador la tiene.
-            if (navigator.clipboard && window.isSecureContext) {
-                
-                // PASO 2: Mejora Progresiva (Progressive Enhancement)
-                // Si la API existe, la usamos para dar la mejor experiencia (copiado automático).
-                navigator.clipboard.writeText(syntax).then(() => {
-                    alert(`Sintaxis copiada al portapapeles:\n${syntax}`);
-                }).catch(err => {
-                    // Si falla incluso en un entorno seguro, ofrecemos un fallback.
-                    console.error('Error al copiar con la API:', err);
-                    prompt('No se pudo copiar. Copia este texto manualmente:', syntax);
-                });
-
-            } else {
-
-                // PASO 3: Degradación Elegante (Graceful Degradation)
-                // Si la API no existe (porque estamos en HTTP), no rompemos la aplicación.
-                // Ofrecemos una alternativa completamente funcional, aunque requiera un paso extra del usuario.
-                prompt('Para copiar, presiona Ctrl+C:', syntax);
-            }
-        }
-
-        if (button.classList.contains('delete')) {
-            const imageIdToDelete = button.dataset.id; 
-            if (confirm('¿Estás seguro de que quieres eliminar esta imagen?')) {
-                try {
-                    const response = await fetch(baseUrlJs + '/markdown/delete-image', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            id_image: imageIdToDelete, 
-                            csrf_token: csrfTokenImageAction 
-                        })
+            if (button.classList.contains('copy')) {
+                const imageName = button.dataset.name;
+                const syntax = `![texto descriptivo](img:${imageName})`;
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(syntax).then(() => {
+                        alert(`Sintaxis copiada al portapapeles:\n${syntax}`);
+                    }).catch(err => {
+                        prompt('No se pudo copiar. Copia este texto manualmente:', syntax);
                     });
-                    const result = await response.json();
-                    if (response.ok && result.success) {
-                        fetchAndDisplayImages();
-                    } else {
-                        throw new Error(result.error || 'No se pudo eliminar.');
-                    }
-                } catch (error) {
-                    alert(`Error: ${error.message}`);
+                } else {
+                    prompt('Para copiar, presiona Ctrl+C:', syntax);
                 }
             }
-        }
-    });
-}
 
-    // --- CÓDIGO PDF (SIN CAMBIOS) ---
+            if (button.classList.contains('delete')) {
+                const imageIdToDelete = button.dataset.id; 
+                if (confirm('¿Estás seguro de que quieres eliminar esta imagen?')) {
+                    try {
+                        const response = await fetch(baseUrlJs + '/markdown/delete-image', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id_image: imageIdToDelete, csrf_token: csrfTokenImageAction })
+                        });
+                        const result = await response.json();
+                        if (response.ok && result.success) {
+                            fetchAndDisplayImages();
+                        } else { throw new Error(result.error || 'No se pudo eliminar.'); }
+                    } catch (error) { alert(`Error: ${error.message}`); }
+                }
+            }
+        });
+    }
+
+    // =========================================================================
+    // === LÓGICA DE GENERACIÓN DE PDF =========================================
+    // =========================================================================
     if (generatePdfBtnHtml && previewDiv) {
         generatePdfBtnHtml.addEventListener('click', async function () {
             const htmlContentForPdf = previewDiv.innerHTML;
             if (!htmlContentForPdf.trim() || htmlContentForPdf.includes("La vista previa se mostrará aquí...")) {
-                alert("La vista previa está vacía. Escribe algo en el editor y espera a que se genere la previsualización.");
-                return;
+                alert("La vista previa está vacía."); return;
             }
             const originalButtonText = this.textContent;
-            this.textContent = 'Generando PDF...';
-            this.disabled = true;
+            this.textContent = 'Generando PDF...'; this.disabled = true;
             try {
                 const endpoint = baseUrlJs + '/markdown/generate-pdf-from-html';
                 const bodyParams = new URLSearchParams();
                 bodyParams.append('html_content', htmlContentForPdf);
-                if (csrfTokenPdfGenerate) {
-                    bodyParams.append('csrf_token_generate_pdf', csrfTokenPdfGenerate);
-                }
+                if (csrfTokenPdfGenerate) { bodyParams.append('csrf_token_generate_pdf', csrfTokenPdfGenerate); }
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -279,25 +228,19 @@ if (imageGallery) {
                 });
                 if (!response.ok) {
                     let errorMsg = `Error del servidor: ${response.status}`;
-                    const errorTextAttempt = await response.text();
-                    try { const errorData = JSON.parse(errorTextAttempt); errorMsg = errorData.error || errorData.message || errorMsg; }
-                    catch (e) { if(errorTextAttempt) errorMsg += ` - ${errorTextAttempt.substring(0, 100)}`;}
+                    try { const errorData = await response.json(); errorMsg = errorData.error || errorMsg; }
+                    catch (e) { /* No hacer nada si no es JSON */ }
                     throw new Error(errorMsg);
                 }
                 const data = await response.json();
                 if (data.success && data.downloadPageUrl) {
                     window.open(data.downloadPageUrl, '_blank');
-                } else if (data.error) {
-                    alert(`Error al generar PDF: ${data.error}`);
-                } else {
-                    alert("Respuesta inesperada del servidor (PDF).");
-                }
+                } else { throw new Error(data.error || "Respuesta inesperada del servidor."); }
             } catch (error) {
                 console.error("JS ERROR en func. generar PDF (catch):", error);
                 alert(`Ocurrió un error: ${error.message}`);
             } finally {
-                this.textContent = originalButtonText;
-                this.disabled = false;
+                this.textContent = originalButtonText; this.disabled = false;
             }
         });
     }
