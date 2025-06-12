@@ -11,6 +11,7 @@ Options -Indexes
 RewriteRule ^(src|Views|vendor)/ - [F,L] # Asegúrate que estos directorios están en la raíz de /markdown2video/
 
 # 2. Bloquear acceso directo a archivos .php excepto index.php <--- SECCIÓN CORREGIDA
+RewriteCond %{REQUEST_URI} !^/public/check_gd\.php$ # Excepción temporal para verificar GD
 RewriteCond %{REQUEST_URI} !^/index\.php$
 RewriteCond %{REQUEST_URI} \.php$ [NC]
 RewriteRule .* - [F,L]
