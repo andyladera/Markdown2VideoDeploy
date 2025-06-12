@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const modeSelect = document.getElementById('mode-select');
     const generatePdfBtnHtml = document.getElementById('generatePdfBtnHtml');
     
+    // Selectores del modal principal de imágenes
     const openModalBtn = document.getElementById('openImageModalBtn');
     const closeModalBtn = document.getElementById('closeImageModalBtn');
     const imageModal = document.getElementById('imageModal');
@@ -14,18 +15,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const imageGallery = document.getElementById('imageGallery');
     const uploadStatusDiv = document.getElementById('uploadStatus');
 
+    // --- ¡NUEVO! --- Selectores para el modal de copiado
+    const copySyntaxModal = document.getElementById('copySyntaxModal');
+    const syntaxToCopyInput = document.getElementById('syntaxToCopy');
+    const copySyntaxBtn = document.getElementById('copySyntaxBtn');
+    const closeCopyModalBtn = document.getElementById('closeCopyModalBtn');
+    const copyStatusMessage = document.getElementById('copyStatusMessage');
+
+    // Variables globales
     const baseUrlJs = typeof window.BASE_APP_URL !== 'undefined' ? window.BASE_APP_URL : '';
     const csrfTokenPdfGenerate = typeof window.CSRF_TOKEN_PDF_GENERATE !== 'undefined' ? window.CSRF_TOKEN_PDF_GENERATE : '';
     const csrfTokenImageAction = typeof window.CSRF_TOKEN_IMAGE_ACTION !== 'undefined' ? window.CSRF_TOKEN_IMAGE_ACTION : '';
 
     // =========================================================================
-    // === INICIALIZACIÓN DE CODEMIRROR ========================================
+    // === INICIALIZACIÓN DE CODEMIRROR Y MARKED.JS ============================
     // =========================================================================
-    if (!editorTextarea) {
-        console.error("JS ERROR: Textarea #editor no encontrado.");
-        return;
-    }
-
+    if (!editorTextarea) { console.error("JS ERROR: Textarea #editor no encontrado."); return; }
     let editorInstance = null;
     try {
         editorInstance = CodeMirror.fromTextArea(editorTextarea, {
@@ -38,13 +43,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function refreshEditor() { if (editorInstance) { editorInstance.setSize('100%', '100%'); editorInstance.refresh(); } }
     setTimeout(refreshEditor, 100);
 
-    // =========================================================================
-    // === CONFIGURACIÓN DE MARKED.JS PARA IMÁGENES ============================
-    // =========================================================================
     if (typeof marked !== 'undefined') {
         const renderer = new marked.Renderer();
         const originalImageRenderer = renderer.image; 
-
         renderer.image = (href, title, text) => {
             const url = typeof href === 'string' ? href : (href.href || '');
             if (url.startsWith('img:')) {
@@ -57,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return originalImageRenderer.call(renderer, href, title, text);
         };
-        
         marked.use({ renderer }); 
     }
 
@@ -66,26 +66,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeof marked !== 'undefined' && editorInstance) {
             try {
                 previewDiv.innerHTML = marked.parse(editorInstance.getValue(), { breaks: true });
-            } catch (e) {
-                console.error("JS Error marked.js:", e);
-                previewDiv.innerHTML = "<p style='color:red;'>Error preview.</p>";
-            }
-        } else if (typeof marked === 'undefined') {
-            previewDiv.innerHTML = "<p style='color:orange;'>Marked.js no cargado.</p>";
-        }
+            } catch (e) { console.error("JS Error marked.js:", e); previewDiv.innerHTML = "<p style='color:red;'>Error preview.</p>"; }
+        } else if (typeof marked === 'undefined') { previewDiv.innerHTML = "<p style='color:orange;'>Marked.js no cargado.</p>"; }
     }
 
     if (editorInstance) { editorInstance.on("change", updateMarkdownPreview); setTimeout(updateMarkdownPreview, 150); }
     
     // =========================================================================
-    // === LÓGICA DE INTERFAZ (MODOS Y MODAL) =================================
+    // === LÓGICA DE INTERFAZ ==================================================
     // =========================================================================
     if (modeSelect) {
         modeSelect.addEventListener("change", function () {
-            const selectedMode = this.value;
-            if (selectedMode === "marp") {
-                window.location.href = baseUrlJs + '/markdown/marp-editor';
-            }
+            if (this.value === "marp") { window.location.href = baseUrlJs + '/markdown/marp-editor'; }
         });
     }
 
@@ -103,15 +95,12 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const response = await fetch(baseUrlJs + '/markdown/get-user-images');
             if (!response.ok) throw new Error('No se pudo cargar la galería. (Error: ' + response.status + ')');
-            
             const images = await response.json();
             imageGallery.innerHTML = '';
-            
             if (images.length === 0) {
                 imageGallery.innerHTML = '<p>No has subido ninguna imagen todavía.</p>';
                 return;
             }
-
             images.forEach(img => {
                 const item = document.createElement('div');
                 item.className = 'gallery-item';
@@ -125,30 +114,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
                 imageGallery.appendChild(item);
             });
-        } catch (error) {
-            imageGallery.innerHTML = `<p style="color: #842029;">${error.message}</p>`;
-        }
+        } catch (error) { imageGallery.innerHTML = `<p style="color: #842029;">${error.message}</p>`; }
     }
 
+    // Listeners para el modal principal
     if (openModalBtn && imageModal) {
         openModalBtn.addEventListener('click', () => {
             imageModal.style.display = 'flex';
             fetchAndDisplayImages();
         });
     }
-
     if (closeModalBtn && imageModal) {
-        closeModalBtn.addEventListener('click', () => {
-            imageModal.style.display = 'none';
-        });
+        closeModalBtn.addEventListener('click', () => { imageModal.style.display = 'none'; });
     }
 
+    // Listener para el formulario de subida
     if (uploadForm) {
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(uploadForm);
             formData.append('csrf_token', csrfTokenImageAction);
-            
             const submitBtn = uploadForm.querySelector('button[type="submit"]');
             submitBtn.disabled = true; submitBtn.textContent = 'Subiendo...';
             try {
@@ -167,23 +152,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     
+    // Listener para acciones en la galería (copiar y borrar)
     if (imageGallery) {
         imageGallery.addEventListener('click', async (e) => {
             const button = e.target.closest('button');
             if (!button) return;
 
             if (button.classList.contains('copy')) {
+                if (!copySyntaxModal || !syntaxToCopyInput) return;
                 const imageName = button.dataset.name;
                 const syntax = `![texto descriptivo](img:${imageName})`;
-                if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(syntax).then(() => {
-                        alert(`Sintaxis copiada al portapapeles:\n${syntax}`);
-                    }).catch(err => {
-                        prompt('No se pudo copiar. Copia este texto manualmente:', syntax);
-                    });
-                } else {
-                    prompt('Para copiar, presiona Ctrl+C:', syntax);
-                }
+                syntaxToCopyInput.value = syntax;
+                copyStatusMessage.textContent = '';
+                copySyntaxModal.style.display = 'flex';
+                syntaxToCopyInput.select();
+                syntaxToCopyInput.setSelectionRange(0, 99999);
             }
 
             if (button.classList.contains('delete')) {
@@ -202,6 +185,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     } catch (error) { alert(`Error: ${error.message}`); }
                 }
             }
+        });
+    }
+
+    // --- ¡NUEVO! --- Listeners para el modal de copiado
+    if (copySyntaxBtn && syntaxToCopyInput) {
+        copySyntaxBtn.addEventListener('click', () => {
+            syntaxToCopyInput.select();
+            syntaxToCopyInput.setSelectionRange(0, 99999);
+            try {
+                document.execCommand('copy');
+                copyStatusMessage.textContent = '¡Copiado!';
+            } catch (err) {
+                copyStatusMessage.textContent = 'Error al copiar.';
+            }
+        });
+    }
+    if (closeCopyModalBtn && copySyntaxModal) {
+        closeCopyModalBtn.addEventListener('click', () => {
+            copySyntaxModal.style.display = 'none';
         });
     }
 

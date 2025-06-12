@@ -98,6 +98,26 @@ echo "</script>\n";
     </div>
   </div>
 
+  <!-- ... tu código existente ... -->
+  </div> <!-- Este es el cierre de <div id="imageModal" ...> -->
+
+  <!-- ¡NUEVO! Modal simple para copiar la sintaxis -->
+  <div id="copySyntaxModal" class="modal-overlay" style="display: none;">
+    <div class="copy-modal-content">
+      <h4>Copiar Sintaxis de Imagen</h4>
+      <p>Usa este código en tu editor para insertar la imagen:</p>
+      <input type="text" id="syntaxToCopy" readonly>
+      <div class="copy-modal-actions">
+        <button id="copySyntaxBtn" class="submit-btn">Copiar</button>
+        <button id="closeCopyModalBtn" class="cancel-btn">Cerrar</button>
+      </div>
+      <small id="copyStatusMessage" class="copy-status"></small>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/codemirror.min.js"></script>
+  <!-- ... el resto de tus scripts ... -->
+
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/mode/markdown/markdown.js"></script>

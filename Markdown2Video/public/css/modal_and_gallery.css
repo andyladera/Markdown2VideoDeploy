@@ -171,3 +171,62 @@
 .gallery-item-actions button.copy:hover { color: #0056b3; }
 .gallery-item-actions button.delete { color: #dc3545; }
 .gallery-item-actions button.delete:hover { color: #a71d2a; }
+
+/* --- ESTILOS PARA EL NUEVO MODAL DE COPIADO --- */
+
+.copy-modal-content {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.copy-modal-content h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.2em;
+}
+
+.copy-modal-content p {
+  font-size: 0.9em;
+  color: #6c757d;
+  margin-bottom: 15px;
+}
+
+#syntaxToCopy {
+  width: 100%;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 1.1em;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background-color: #e9ecef;
+  text-align: center;
+  margin-bottom: 20px;
+  box-sizing: border-box; /* Importante */
+}
+
+.copy-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.copy-modal-actions .cancel-btn {
+  background-color: #6c757d;
+}
+.copy-modal-actions .cancel-btn:hover {
+  background-color: #5c636a;
+}
+
+.copy-status {
+    display: block;
+    margin-top: 15px;
+    height: 1em; /* Para que no salte el layout */
+    font-size: 0.9em;
+    color: #198754;
+    font-weight: bold;
+}
