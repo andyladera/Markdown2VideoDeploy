@@ -36,15 +36,14 @@ jobs:
             chmod +x vendor/bin/phpunit  # 👈 Agrega esta línea
 
       - name: 🧪 Ejecutar pruebas con cobertura
-        working-directory: Markdown2Video
         run: |
           mkdir -p coverage
-          XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-xml=coverage ../tests
+          XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-xml=coverage tests
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         working-directory: Markdown2Video
         run: |
-          vendor/bin/infection --coverage=coverage --logger-html=infection-report
+          vendor/bin/infection --coverage=../coverage --logger-html=infection-report
 
       - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4
