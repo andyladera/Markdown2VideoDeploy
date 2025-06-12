@@ -42,7 +42,9 @@ jobs:
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         run: |
-          Markdown2Video/vendor/bin/infection --coverage=coverage --logger-html=infection-report
+          Markdown2Video/vendor/bin/infection --coverage=coverage --logger-html=infection-report \
+            --test-framework=phpunit \
+            --test-framework-options="--phpunit-path=Markdown2Video/vendor/bin/phpunit"
 
       - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4
