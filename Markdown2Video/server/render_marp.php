@@ -20,32 +20,6 @@ if (isset($_MARP_OUTPUT_FORMAT, $_MARP_OUTPUT_FILE_PATH, $_MARP_MARKDOWN_CONTENT
     }
 
     $nodeExecutablePath = 'node'; 
-    // --- Begin Chrome/Puppeteer discovery ---
-    // Find Chromium path using our helper script. This is necessary because in many
-    // server environments (like Docker, AWS Elastic Beanstalk), a pre-installed
-    // Chrome browser is not available. By adding 'puppeteer' to package.json,
-    // a compatible version of Chromium is downloaded into node_modules.
-    $nodePath = 'node'; // Assuming node is in the system's PATH
-    $getChromePathScript = __DIR__ . '/get_chrome_path.js';
-    $chromePath = '';
-
-    // Check if the helper script exists before trying to execute it
-    if (file_exists($getChromePathScript)) {
-        // Execute the node script to get the path to the puppeteer-managed Chromium
-        // Redirect stderr to nul to avoid printing errors if the command fails
-        $chromePath = trim(shell_exec("{$nodePath} {$getChromePathScript} 2>nul"));
-    }
-
-    // Set environment variables for marp-cli if a valid path was found.
-    // marp-cli's underlying chrome-launcher will pick these up.
-    if (!empty($chromePath) && file_exists($chromePath)) {
-        putenv("CHROME_PATH={$chromePath}");
-        // These flags are often necessary for running Chrome headless in server/container environments.
-        putenv("CHROME_NO_SANDBOX=true");
-        putenv("CHROME_DISABLE_GPU=true");
-    }
-    // --- End Chrome/Puppeteer discovery ---
-
     $marpCliScriptPath  = realpath(ROOT_PATH . '/node_modules/@marp-team/marp-cli/marp-cli.js');
 
     if ($marpCliScriptPath === false) {
