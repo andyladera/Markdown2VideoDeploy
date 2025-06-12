@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "@marp-team/marp-cli": "^4.1.2",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "puppeteer": "^22.10.0"
   }
 }
