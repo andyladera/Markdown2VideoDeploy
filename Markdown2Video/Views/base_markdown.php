@@ -57,6 +57,7 @@ echo "</script>\n";
       <div class="button-container">
         <button class="generate-btn" data-action="generate-ppt">Generar PPT</button>
         <button class="generate-btn" id="generatePdfBtnHtml">Generar PDF (desde Preview)</button>
+        <button class="generate-btn" data-action="generate-mp4">Generar Video MP4</button>
         <button class="generate-btn" data-action="generate-html">Generar HTML</button>
       </div>
     </div>
