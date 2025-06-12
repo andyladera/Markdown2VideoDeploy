@@ -1,115 +1,91 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTOS DEL DOM ---
-    const editorTextArea = document.getElementById('editor-marp');
-    const previewDiv = document.getElementById('ppt-preview');
-    const generateButtons = document.querySelectorAll('.generate-btn');
+// public/js/base_marp.js
+document.addEventListener('DOMContentLoaded', function() {
+    const editorTextareaMarp = document.getElementById('editor-marp');
+    const previewDivMarp = document.getElementById('ppt-preview');
+    const modeSelectMarp = document.getElementById('mode-select-marp-page');
 
-    // --- VALIDACIÓN INICIAL ---
-    if (!editorTextArea || !previewDiv) {
-        console.error('Error crítico: No se encontró el editor o el contenedor de la vista previa.');
-        return;
+    let marpDebounceTimer;
+
+    if (!editorTextareaMarp) {
+        console.error("Textarea #editor-marp no encontrado. Editor Marp no se inicializará.");
+        return; 
     }
 
-    // --- INICIALIZACIÓN DEL EDITOR CODEMIRROR ---
-    const editor = CodeMirror.fromTextArea(editorTextArea, {
+    const marpCodeMirrorEditor = CodeMirror.fromTextArea(editorTextareaMarp, {
         mode: 'markdown',
         theme: 'dracula',
         lineNumbers: true,
         lineWrapping: true,
-        placeholder: 'Escribe tu presentación Marp aquí...',
+        matchBrackets: true,
+        placeholder: editorTextareaMarp.getAttribute('placeholder') || "Escribe tu presentación Marp aquí...",
         extraKeys: { "Enter": "newlineAndIndentContinueMarkdownList" }
     });
 
-    // --- LÓGICA DE VISTA PREVIA EN TIEMPO REAL ---
-    let debounceTimer;
-    const updatePreview = () => {
-        const markdownContent = editor.getValue();
-        // No enviar si está vacío
-        if (!markdownContent.trim()) {
-            previewDiv.innerHTML = '<p>Escribe en el editor para ver la vista previa...</p>';
-            return;
-        }
+    function refreshMarpEditorLayout() {
+        marpCodeMirrorEditor.setSize('100%', '100%');
+        marpCodeMirrorEditor.refresh();
+    }
+    setTimeout(refreshMarpEditorLayout, 50);
 
-        const formData = new FormData();
-        formData.append('markdown', markdownContent);
+    async function updateMarpPreview() {
+        if (!previewDivMarp || !marpCodeMirrorEditor) return;
+        const markdownText = marpCodeMirrorEditor.getValue();
+        previewDivMarp.innerHTML = '<p>Generando vista previa Marp...</p>';
 
-        fetch(`${window.BASE_APP_URL}/markdown/render-marp-preview`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
+        try {
+            const renderEndpoint = '/markdown/render-marp-preview';
+            const requestBody = `markdown=${encodeURIComponent(markdownText)}`;
+            const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+
+            const response = await fetch(renderEndpoint, { method: 'POST', headers: headers, body: requestBody });
+
             if (!response.ok) {
-                throw new Error(`Error del servidor: ${response.status}`);
-            }
-            return response.text();
-        })
-        .then(html => {
-            previewDiv.innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error al actualizar la vista previa:', error);
-            previewDiv.innerHTML = `<p style="color: red;">Error al cargar la vista previa: ${error.message}</p>`;
-        });
-    };
-
-    // Disparar la actualización con un retraso (debounce) para no sobrecargar el servidor
-    editor.on('change', () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(updatePreview, 500); // 500ms de retraso
-    });
-
-    // --- LÓGICA PARA BOTONES DE GENERACIÓN ---
-    generateButtons.forEach(button => {
-        button.addEventListener('click', async (event) => {
-            const format = event.target.dataset.format;
-
-            if (format !== 'pdf') {
-                alert(`La generación de ${format.toUpperCase()} aún no está implementada.`);
-                return;
+                let errorDetail = await response.text();
+                try {
+                    const errorJson = JSON.parse(errorDetail);
+                    errorDetail = errorJson.details || errorJson.error || errorDetail;
+                } catch (e) { /* No era JSON */ }
+                throw new Error(`Error del servidor: ${response.status} - ${errorDetail}`);
             }
 
-            const markdownContent = editor.getValue();
-            if (!markdownContent.trim()) {
-                alert('El editor está vacío. Escribe algo para generar el PDF.');
-                return;
-            }
+            const htmlResult = await response.text();
 
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = 'Generando...';
-
-            try {
-                const response = await fetch(`${window.BASE_APP_URL}/markdown/generate-pdf`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ markdown: markdownContent })
+            if (typeof DOMPurify !== 'undefined') {
+                const cleanHtml = DOMPurify.sanitize(htmlResult, { 
+                    USE_PROFILES: { html: true },
+                    // Configuraciones específicas de Marp pueden agregarse aquí si es necesario
                 });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ message: 'No se pudo obtener el detalle del error.' }));
-                    throw new Error(`Error del servidor: ${response.status}. ${errorData.message}`);
-                }
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'presentacion.pdf';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-
-            } catch (error) {
-                console.error('Error al generar el PDF:', error);
-                alert(`Hubo un error al intentar generar el PDF: ${error.message}`);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Generar PDF';
+                previewDivMarp.innerHTML = cleanHtml;
+            } else {
+                console.warn("DOMPurify no está cargado. El HTML se insertará sin saneamiento.");
+                previewDivMarp.innerHTML = htmlResult;
             }
-        });
+
+        } catch (error) {
+            console.error("Error al generar vista previa Marp:", error);
+            previewDivMarp.innerHTML = '';
+            const errorParagraph = document.createElement('p');
+            errorParagraph.style.color = 'red';
+            errorParagraph.textContent = `Error al cargar la previsualización Marp: ${error.message}`;
+            previewDivMarp.appendChild(errorParagraph);
+        }
+    }
+
+    marpCodeMirrorEditor.on('change', () => {
+        clearTimeout(marpDebounceTimer);
+        marpDebounceTimer = setTimeout(updateMarpPreview, 700);
     });
 
-    // Forzar una primera actualización al cargar la página
-    updatePreview();
+    if (modeSelectMarp) {
+        modeSelectMarp.addEventListener('change', function () {
+            const selectedMode = this.value;
+            if (selectedMode === 'markdown') {
+                window.location.href = '/markdown/create';
+            } else if (selectedMode === 'marp') {
+                console.log("Modo Marp ya seleccionado.");
+            }
+        });
+    }
+
+    setTimeout(updateMarpPreview, 100);
 });
