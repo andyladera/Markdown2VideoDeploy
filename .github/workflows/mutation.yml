@@ -34,13 +34,11 @@ jobs:
             composer require --dev infection/infection
           fi
 
-      - name: 🧪 Ejecutar pruebas y generar cobertura
-        working-directory: Markdown2Video
-        run: |
-          mkdir -p coverage
-          chmod +x vendor/bin/phpunit
-          vendor/bin/phpunit --coverage-xml=coverage
+      - name: Crear carpeta para el reporte
+        run: mkdir -p docs/coverage
 
+      - name: Ejecutar pruebas con cobertura
+        run: XDEBUG_MODE=coverage phpunit --coverage-html docs/coverage tests
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         working-directory: Markdown2Video
