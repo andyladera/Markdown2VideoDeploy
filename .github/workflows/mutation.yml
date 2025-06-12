@@ -20,6 +20,7 @@ jobs:
           coverage: pcov
 
       - name: 📦 Instalar dependencias (incluye PHPUnit e Infection)
+        working-directory: Markdown2Video
         run: |
           composer install --prefer-dist --no-progress
           # Verifica si infection está instalado, si no lo instala
