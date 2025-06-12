@@ -27,19 +27,28 @@ class MarkdownController {
 
     /**
      */
+    // Reemplaza el método create() en src/Controllers/MarkdownController.php
+
     public function create(): void {
         $base_url = BASE_URL;
         $pageTitle = "Editor de Presentación (Markdown)";
         
-        // Token CSRF específico para acciones en esta página, como generar PDF
+        // Token para PDF
         if (empty($_SESSION['csrf_token_generate_pdf'])) { 
             $_SESSION['csrf_token_generate_pdf'] = bin2hex(random_bytes(32)); 
         }
         $csrf_token_generate_pdf = $_SESSION['csrf_token_generate_pdf'];
 
-        $viewPath = VIEWS_PATH . 'base_markdown.php'; // Asume que es Views/base_markdown.php
+        // --- CORRECCIÓN: Se añade la creación del token para acciones de imágenes ---
+        if (empty($_SESSION['csrf_token_image_action'])) { 
+            $_SESSION['csrf_token_image_action'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token_image_action = $_SESSION['csrf_token_image_action'];
+
+        $viewPath = VIEWS_PATH . 'base_markdown.php';
         if (file_exists($viewPath)) {
-            // Las variables $base_url, $pageTitle, $csrf_token_generate_pdf estarán disponibles
+            // Ahora ambas variables ($csrf_token_generate_pdf y $csrf_token_image_action)
+            // existen y se pasan a la vista.
             require_once $viewPath;
         } else {
             $this->showErrorPage("Vista del editor Markdown no encontrada: " . $viewPath);
