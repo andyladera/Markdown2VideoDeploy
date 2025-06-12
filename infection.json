@@ -1,19 +1,20 @@
 {
   "source": {
-    "directories": ["Markdown2Video"]
-  },
-  "coverage": {
-    "path": "coverage"
+    "directories": ["Markdown2Video/src"]
   },
   "logs": {
-    "html": "mutation-report"
+    "text": "infection.log",
+    "html": "mutation-report/infection.html"
+  },
+  "tmpDir": ".infection",
+  "phpUnit": {
+    "configDir": "Markdown2Video",
+    "tempDir": ".infection/phpunit-tmp"
   },
   "mutators": {
     "@default": true
   },
-  "phpUnit": {
-    "configDir": ".",
-    "customPath": "vendor/bin/phpunit",
-    "timeout": 10
-  }
+  "ignoreMsiWithNoMutations": false,
+  "minMsi": 80,
+  "minCoveredMsi": 80
 }
