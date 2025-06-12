@@ -32,11 +32,14 @@ jobs:
             composer require --dev infection/infection
           fi
 
-      - name: 🧪 Ejecutar pruebas de mutación
+      - name: 🧪 Ejecutar pruebas y generar cobertura
         run: |
-          vendor/bin/infection --coverage=coverage --formatter=html
-        env:
-          INFECTION_MIN_MUTATION_SCORE: 60
+            mkdir -p coverage
+            vendor/bin/phpunit --coverage-xml=coverage
+
+      - name: 🧬 Ejecutar Infection (pruebas de mutación)
+        run: |
+            vendor/bin/infection --coverage=coverage --logger-html=mutation-report
 
       - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4

@@ -1,0 +1,19 @@
+{
+  "source": {
+    "directories": ["Markdown2Video"]
+  },
+  "coverage": {
+    "path": "coverage"
+  },
+  "logs": {
+    "html": "mutation-report"
+  },
+  "mutators": {
+    "@default": true
+  },
+  "phpUnit": {
+    "configDir": ".",
+    "customPath": "vendor/bin/phpunit",
+    "timeout": 10
+  }
+}
