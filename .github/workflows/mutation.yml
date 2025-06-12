@@ -20,6 +20,7 @@ jobs:
           coverage: pcov
     
       - name: 🔓 Permitir plugin infection/extension-installer
+        working-directory: Markdown2Video
         run: composer config --no-plugins allow-plugins.infection/extension-installer true
 
       - name: 📦 Instalar dependencias (incluye PHPUnit e Infection)
