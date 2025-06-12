@@ -49,7 +49,7 @@ jobs:
           chmod +x Markdown2Video/vendor/bin/phpunit
 
           Markdown2Video/vendor/bin/infection \
-          --configuration=../infection.json \
+          --configuration=infection.json \
           --coverage=coverage \
           --verbose
 
