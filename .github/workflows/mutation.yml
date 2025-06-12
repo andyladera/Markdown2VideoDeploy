@@ -38,7 +38,7 @@ jobs:
       - name: 🧪 Ejecutar pruebas con cobertura
         run: |
           mkdir -p coverage
-          XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit --coverage-xml=coverage tests
+          XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit --coverage-xml coverage tests
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         run: |
