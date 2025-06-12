@@ -1,58 +1,36 @@
-name: PHPUnit & Coverage to GitHub Pages
+name: PHPUnit Coverage Report
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-
-permissions:
-  contents: write
-  pages: write
-  id-token: write
+    branches: [main]  # o la rama principal de tu proyecto
 
 jobs:
-  run-tests:
+  test-and-publish:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Clonar repositorio
+        uses: actions/checkout@v3
 
-    - name: Set up PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        extensions: mbstring, dom, pdo, pdo_sqlite
-        coverage: xdebug
+      - name: Instalar dependencias necesarias
+        run: |
+          sudo apt update
+          sudo apt install -y php php-xml php-mbstring php-pdo php-sqlite3
 
-    - name: Install dependencies
-      working-directory: Markdown2Video
-      run: composer install --prefer-dist --no-progress
+      - name: Instalar PHPUnit manualmente
+        run: |
+          wget https://phar.phpunit.de/phpunit-10.phar
+          chmod +x phpunit-10.phar
+          sudo mv phpunit-10.phar /usr/local/bin/phpunit
 
-    - name: Run PHPUnit with coverage
-      run: |
-        mkdir -p docs/coverage
-        ./vendor/bin/phpunit --coverage-html docs/coverage
+      - name: Crear carpeta para el reporte
+        run: mkdir -p docs/coverage
 
-  deploy-gh-pages:
-    needs: run-tests
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+      - name: Ejecutar pruebas con cobertura
+        run: phpunit --coverage-html docs/coverage
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Pages
-      uses: actions/configure-pages@v3
-
-    - name: Upload docs folder
-      uses: actions/upload-pages-artifact@v2
-      with:
-        path: docs
-
-    - name: Deploy to GitHub Pages
-      uses: actions/deploy-pages@v3
+      - name: Subir reporte a GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/coverage
