@@ -38,7 +38,9 @@ jobs:
         working-directory: Markdown2Video
         run: |
           mkdir -p coverage
+          chmod +x vendor/bin/phpunit
           vendor/bin/phpunit --coverage-xml=coverage
+
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         working-directory: Markdown2Video
