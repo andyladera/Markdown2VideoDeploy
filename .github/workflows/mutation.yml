@@ -33,6 +33,7 @@ jobs:
           if [ ! -f vendor/bin/infection ]; then
             composer require --dev infection/infection
           fi
+            chmod +x vendor/bin/phpunit  # 👈 Agrega esta línea
 
       - name: 🧪 Ejecutar pruebas con cobertura
         working-directory: Markdown2Video
