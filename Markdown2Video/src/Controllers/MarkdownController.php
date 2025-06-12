@@ -53,10 +53,11 @@ class MarkdownController {
     public function showMarpEditor(): void {
         $base_url = BASE_URL;
         $pageTitle = "Editor de Presentación (Marp)";
-        if (empty($_SESSION['csrf_token_marp_generate'])) { // Token diferente si es necesario
-            $_SESSION['csrf_token_marp_generate'] = bin2hex(random_bytes(32)); 
+        // Generar token CSRF para acciones en esta página (como generar PDF)
+        if (empty($_SESSION['csrf_token_marp_generate'])) {
+            $_SESSION['csrf_token_marp_generate'] = bin2hex(random_bytes(32));
         }
-        $csrf_token_marp_generate = $_SESSION['csrf_token_marp_generate'];
+        $csrf_token_marp_generate = $_SESSION['csrf_token_marp_generate']; // Pasarlo a la vista
         
         $viewPath = VIEWS_PATH . 'base_marp.php'; // Asume que es Views/base_marp.php
         if (file_exists($viewPath)) {
@@ -373,6 +374,111 @@ class MarkdownController {
         } else { 
             http_response_code(404);
             echo "Archivo no encontrado o acceso no autorizado.";
+            exit;
+        }
+    }
+
+    /**
+     * Genera un PDF desde contenido Markdown usando Marp CLI.
+     * Este es el método para el Plan B, que garantiza fidelidad con la vista previa.
+     * Ruta: POST /markdown/generate-pdf-marp
+     */
+    public function generatePdfFromMarp(): void {
+        // 1. Validar Petición y Token CSRF
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['markdown_content'])) {
+            http_response_code(400); header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Petición incorrecta o falta contenido Markdown.']);
+            exit;
+        }
+        // Usaremos el mismo token que se genera para el editor marp
+        if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_marp_generate'] ?? '', $_POST['csrf_token'])) {
+            http_response_code(403); header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Token CSRF inválido o faltante.']);
+            exit;
+        }
+
+        try {
+            $markdownContent = $_POST['markdown_content'];
+            $userId = $_SESSION['user_id'];
+
+            // 2. Preparar archivos y rutas
+            $nodeExecutablePath = 'node';
+            $marpCliScriptPath = realpath(ROOT_PATH . '/node_modules/@marp-team/marp-cli/marp-cli.js');
+
+            if ($marpCliScriptPath === false) {
+                throw new \Exception('Marp CLI no encontrado en el servidor.');
+            }
+
+            // Crear archivo temporal para el Markdown
+            $tmpMdFile = tempnam(sys_get_temp_dir(), 'marp_md_') . '.md';
+            if (file_put_contents($tmpMdFile, $markdownContent) === false) {
+                throw new \Exception('No se pudo escribir en el archivo temporal de Markdown.');
+            }
+
+            // Definir ruta de salida para el PDF
+            $userIdForPath = $userId ?? 'guest_' . substr(session_id(), 0, 8);
+            $userTempDir = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath . '/';
+            if (!is_dir($userTempDir) && !mkdir($userTempDir, 0775, true)) {
+                throw new \Exception('No se pudo crear el directorio temporal para el PDF.');
+            }
+            $pdfFileName = 'marp_output_' . time() . '_' . bin2hex(random_bytes(3)) . '.pdf';
+            $outputPdfFile = $userTempDir . $pdfFileName;
+
+            // 3. Construir y ejecutar el comando
+            $command = sprintf(
+                '%s "%s" %s --pdf --allow-local-files -o %s',
+                escapeshellcmd($nodeExecutablePath),
+                $marpCliScriptPath,
+                escapeshellarg($tmpMdFile),
+                escapeshellarg($outputPdfFile)
+            );
+
+            $descriptorspec = [ 1 => ["pipe", "w"], 2 => ["pipe", "w"] ]; // stdout, stderr
+            $pipes = [];
+            $process = proc_open($command, $descriptorspec, $pipes, sys_get_temp_dir());
+
+            $errorOutput = '';
+            if (is_resource($process)) {
+                $errorOutput = stream_get_contents($pipes[2]); fclose($pipes[2]);
+                $return_status = proc_close($process);
+
+                if ($return_status !== 0) {
+                    throw new \Exception('Marp CLI falló al generar el PDF. Error: ' . $errorOutput);
+                }
+            } else {
+                throw new \Exception('No se pudo iniciar el proceso de Marp CLI.');
+            }
+
+            // Limpiar archivo temporal de entrada
+            if (file_exists($tmpMdFile)) {
+                unlink($tmpMdFile);
+            }
+
+            // 4. Guardar en sesión y responder
+            if (!file_exists($outputPdfFile)) {
+                throw new \Exception('El archivo PDF no fue creado por Marp CLI. Error: ' . $errorOutput);
+            }
+
+            $_SESSION['pdf_download_file'] = $pdfFileName;
+            $_SESSION['pdf_download_full_path'] = $outputPdfFile;
+
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'PDF generado correctamente con Marp CLI.',
+                'downloadPageUrl' => BASE_URL . '/markdown/download-page/' . urlencode($pdfFileName)
+            ]);
+            exit;
+
+        } catch (\Throwable $e) {
+            // Limpiar archivos si existen en caso de error
+            if (isset($tmpMdFile) && file_exists($tmpMdFile)) unlink($tmpMdFile);
+            if (isset($outputPdfFile) && file_exists($outputPdfFile)) unlink($outputPdfFile);
+
+            error_log("ERROR en generatePdfFromMarp: " . $e->getMessage());
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Error interno al generar el PDF con Marp.']);
             exit;
         }
     }
