@@ -191,6 +191,8 @@ async function fetchAndDisplayImages() {
     
     // En public/js/base_markdown.js
 
+// Reemplaza este listener en public/js/base_markdown.js
+
 if (imageGallery) {
     imageGallery.addEventListener('click', async (e) => {
         const button = e.target.closest('button');
@@ -199,9 +201,31 @@ if (imageGallery) {
         if (button.classList.contains('copy')) {
             const imageName = button.dataset.name;
             const syntax = `![texto descriptivo](img:${imageName})`;
-            navigator.clipboard.writeText(syntax).then(() => {
-                alert(`Sintaxis copiada:\n${syntax}`);
-            }).catch(err => alert('Error al copiar.'));
+
+            // --- ESTA ES LA LÓGICA DE CALIDAD PARA HTTP ---
+
+            // PASO 1: Detección de Funcionalidad (Feature Detection)
+            // Comprobamos si la API segura del portapapeles está disponible.
+            // Esto es una buena práctica porque no asumimos que el navegador la tiene.
+            if (navigator.clipboard && window.isSecureContext) {
+                
+                // PASO 2: Mejora Progresiva (Progressive Enhancement)
+                // Si la API existe, la usamos para dar la mejor experiencia (copiado automático).
+                navigator.clipboard.writeText(syntax).then(() => {
+                    alert(`Sintaxis copiada al portapapeles:\n${syntax}`);
+                }).catch(err => {
+                    // Si falla incluso en un entorno seguro, ofrecemos un fallback.
+                    console.error('Error al copiar con la API:', err);
+                    prompt('No se pudo copiar. Copia este texto manualmente:', syntax);
+                });
+
+            } else {
+
+                // PASO 3: Degradación Elegante (Graceful Degradation)
+                // Si la API no existe (porque estamos en HTTP), no rompemos la aplicación.
+                // Ofrecemos una alternativa completamente funcional, aunque requiera un paso extra del usuario.
+                prompt('Para copiar, presiona Ctrl+C:', syntax);
+            }
         }
 
         if (button.classList.contains('delete')) {
@@ -211,8 +235,6 @@ if (imageGallery) {
                     const response = await fetch(baseUrlJs + '/markdown/delete-image', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        // --- ¡CORRECCIÓN AQUÍ! ---
-                        // Nos aseguramos de que el objeto JSON que se envía tenga la clave 'id_image'.
                         body: JSON.stringify({ 
                             id_image: imageIdToDelete, 
                             csrf_token: csrfTokenImageAction 
