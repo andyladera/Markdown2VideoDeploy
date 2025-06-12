@@ -1,0 +1,59 @@
+name: Mutation Testing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  infection:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Run Infection mutation tests
+        run: |
+          vendor/bin/infection --coverage=coverage --formatter=html
+        env:
+          INFECTION_MIN_MUTATION_SCORE: 60
+
+      - name: Upload mutation report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: infection-report/
+
+  deploy-ghpages:
+    needs: infection
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download mutation report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: reports
+          destination_dir: reports # para dejarlo en /reports/
+          keep_files: true # NO borra otros reportes en gh-pages
