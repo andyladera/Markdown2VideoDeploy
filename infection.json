@@ -8,8 +8,7 @@
   },
   "tmpDir": ".infection",
   "phpUnit": {
-    "configDir": "Markdown2Video",
-    "tempDir": ".infection/phpunit-tmp"
+    "configDir": "Markdown2Video"
   },
   "mutators": {
     "@default": true
