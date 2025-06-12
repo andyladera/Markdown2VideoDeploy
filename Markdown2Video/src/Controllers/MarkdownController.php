@@ -4,6 +4,7 @@ namespace Dales\Markdown2video\Controllers;
 use PDO;
 use Dompdf\Dompdf;     
 use Dompdf\Options;  
+use Dales\Markdown2video\Models\ImageModel; 
 
 class MarkdownController {
     private ?PDO $pdo;

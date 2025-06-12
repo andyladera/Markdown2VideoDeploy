@@ -1,8 +1,4 @@
 <?php
-// --- CÓDIGO DE DEPURACIÓN TEMPORAL ---
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 // --- INICIO DE index.php ---
 
 // 0. INCLUIR EL AUTOLOADER DE COMPOSER (¡EL MÁS IMPORTANTE!)
