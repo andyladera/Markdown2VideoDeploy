@@ -39,7 +39,7 @@ jobs:
         working-directory: Markdown2Video
         run: |
           mkdir -p coverage
-          XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-xml=coverage tests
+          XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-xml=coverage ../tests
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         working-directory: Markdown2Video
