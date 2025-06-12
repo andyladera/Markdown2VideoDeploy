@@ -7,215 +7,110 @@
 // ini_set('display_errors', 0); // Errores deben ser logueados y manejados
 // error_reporting(E_ALL);
 
-// Definir ROOT_PATH si no está ya definido (debería estarlo si es incluido por un script que lo define)Add commentMore actions
-if (!defined('ROOT_PATH')) {
-    // Esto es un fallback, idealmente el script que llama (MarkdownController) asegura que las constantes estén disponibles.
-    define('ROOT_PATH', dirname(__DIR__)); // Asume que server/ está un nivel abajo del root
-}
-
-// --- NUEVA LÓGICA PARA GENERACIÓN DE ARCHIVOS (PDF, etc.) ---
-// Estas variables globales son establecidas por MarkdownController->generateMarpFile()
-if (isset($_MARP_OUTPUT_FORMAT, $_MARP_OUTPUT_FILE_PATH, $_MARP_MARKDOWN_CONTENT)) {
-    
-    $markdownContent = $_MARP_MARKDOWN_CONTENT;
-    $outputFormat    = strtolower($_MARP_OUTPUT_FORMAT); // ej. 'pdf'
-    $outputFilePath  = $_MARP_OUTPUT_FILE_PATH;
-
-    if (empty($markdownContent)) {
-        error_log("render_marp.php (File Gen Mode): Contenido Markdown vacío.");
-        // No enviar JSON aquí, el controlador lo hará. Simplemente no crear el archivo.
-        return; 
-    }
-
-    $nodeExecutablePath = 'node'; 
-    // Usar ROOT_PATH para asegurar que la ruta a node_modules sea correcta
-    $marpCliScriptPath  = realpath(ROOT_PATH . '/node_modules/@marp-team/marp-cli/marp-cli.js');
-
-    if ($marpCliScriptPath === false) {
-        error_log("render_marp.php (File Gen Mode): Marp CLI no encontrado. Ruta intentada: " . ROOT_PATH . '/node_modules/@marp-team/marp-cli/marp-cli.js');
-        return;
-    }
-
-    $tmpMdFile = tempnam(sys_get_temp_dir(), 'marp_md_gen_');
-    if ($tmpMdFile === false) {
-        error_log("render_marp.php (File Gen Mode): Error creando archivo temporal MD.");
-        return;
-    }
-
-    $tmpMdFileWithExt = $tmpMdFile . '.md';
-    if (!rename($tmpMdFile, $tmpMdFileWithExt)) {
-        error_log("render_marp.php (File Gen Mode): Advertencia, no se pudo renombrar temp MD a .md: " . $tmpMdFile);
-        // Usar $tmpMdFile (sin .md) si rename falla, Marp CLI debería manejarlo
-    } else {
-        $tmpMdFile = $tmpMdFileWithExt;
-    }
-
-    if (file_put_contents($tmpMdFile, $markdownContent) === false) {
-        error_log("render_marp.php (File Gen Mode): Error escribiendo en archivo temporal MD: " . $tmpMdFile);
-        if (file_exists($tmpMdFile)) unlink($tmpMdFile);
-        return;
-    }
-    $marpArgs = [];
-    if ($outputFormat === 'pdf') {
-        $marpArgs[] = '--pdf';
-    } elseif ($outputFormat === 'pptx') {
-        $marpArgs[] = '--pptx';
-    } elseif ($outputFormat === 'html') { // Para generar un archivo HTML independiente
-        $marpArgs[] = '--html';
-    } else {
-        error_log("render_marp.php (File Gen Mode): Formato de salida no soportado '{$outputFormat}'.");
-        if (file_exists($tmpMdFile)) unlink($tmpMdFile);
-        return;
-    }
-    
-    // Comando para generar el archivo de salida
-    $command = sprintf(
-        '%s "%s" %s %s --allow-local-files --html -o %s',
-        escapeshellcmd($nodeExecutablePath),
-        $marpCliScriptPath, // Ya es realpath, no necesita escapeshellcmd si confiamos en la ruta
-        escapeshellarg($tmpMdFile),
-        implode(' ', $marpArgs), // --pdf, --pptx, etc.
-        escapeshellarg($outputFilePath)
-    );
-
-    // error_log("render_marp.php (File Gen Mode): Ejecutando Comando: " . $command); // Para debug
-
-    $descriptorspec = [ 0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"] ];
-    $pipes = [];
-    // Especificar el directorio de trabajo puede ser útil si Marp CLI tiene problemas con rutas relativas para assets
-    $cwd = ROOT_PATH; // O el directorio donde están los assets si es diferente
-    $process = proc_open($command, $descriptorspec, $pipes, $cwd);
-
-    $cmdOutput = '';
-    $cmdErrorOutput = '';
-
-    if (is_resource($process)) {
-        fclose($pipes[0]); 
-        $cmdOutput = stream_get_contents($pipes[1]); fclose($pipes[1]);
-        $cmdErrorOutput = stream_get_contents($pipes[2]); fclose($pipes[2]);
-        $return_status = proc_close($process);
-    } else {
-        $return_status = -1;
-        $cmdErrorOutput = "Error al iniciar el proceso de Marp CLI para generación de archivo.";
-    }
-
-    if (file_exists($tmpMdFile)) {
-        unlink($tmpMdFile);
-    }
-
-    if ($return_status !== 0) {
-        error_log("render_marp.php (File Gen Mode): Error ejecutando Marp CLI. Código: $return_status. Formato: $outputFormat. Comando: $command. Stderr: $cmdErrorOutput. Stdout: $cmdOutput");
-        // El controlador verificará si $outputFilePath existe. Si no, fallará.
-    } else {
-        // Éxito, el archivo debería estar en $outputFilePath
-        // error_log("render_marp.php (File Gen Mode): Archivo {$outputFormat} generado con éxito en {$outputFilePath}");
-    }
-    
-    // No imprimir nada aquí, el controlador se encarga de la respuesta JSON
-    return; // Termina la ejecución del script para el modo de generación de archivos.
-
-} // --- FIN DE LA NUEVA LÓGICA PARA GENERACIÓN DE ARCHIVOS ---
-
-
-// --- LÓGICA EXISTENTE PARA VISTA PREVIA HTML (si no estamos en modo generación de archivo) ---
-// Esta parte solo se ejecuta si las variables globales para generación de archivo NO están seteadas.
-
-// Función para enviar respuesta JSON de error y terminar (para el modo vista previa)
-function send_json_error_preview(int $statusCode, string $message, ?string $details = null): void {
+// Función para enviar respuesta JSON de error y terminar
+function send_json_error(int $statusCode, string $message, ?string $details = null): void {
     if (!headers_sent()) {
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
     }
     $response = ['error' => $message];
-    if ($details !== null&& (defined('ENVIRONMENT') && ENVIRONMENT === 'development')) { // Mostrar detalles solo en desarrollo
+    if ($details !== null) {
         $response['details'] = $details;
     }
     echo json_encode($response);
-    // No hacemos exit() aquí si es incluido, el controlador maneja el flujo.
-    // Si este script es llamado directamente como un endpoint API, necesitaría un exit() o return explícito.
+    // No hacemos exit() aquí, dejamos que el controlador lo maneje si es un include.
+    // Si este script se llamara DIRECTAMENTE como un endpoint API, necesitaría exit().
 }
 
 if (!isset($_POST['markdown'])) {
-    send_json_error_preview(400, 'No se recibió contenido markdown para la vista previa.');
+    send_json_error(400, 'No se recibió contenido markdown.');
+    return; // Si es un include, retornar. Si es un endpoint directo, sería exit.
+}
+
+$markdownContent = $_POST['markdown'];
+
+$nodeExecutablePath = 'node'; // O la ruta completa si 'node' no está en el PATH del servidor
+$marpCliScriptPath  = realpath(__DIR__ . '/../node_modules/@marp-team/marp-cli/marp-cli.js');
+
+if ($marpCliScriptPath === false) {
+    error_log("Error Crítico: No se pudo encontrar Marp CLI. Ruta intentada: " . __DIR__ . '/../node_modules/@marp-team/marp-cli/marp-cli.js');
+    send_json_error(500, 'Error de configuración del servidor: Marp CLI no encontrado.');
     return;
 }
 
-$markdownContentPreview = $_POST['markdown'];
-
-$nodeExecutablePathPreview = 'node';
-$marpCliScriptPathPreview  = realpath(ROOT_PATH . '/node_modules/@marp-team/marp-cli/marp-cli.js');
-
-if ($marpCliScriptPathPreview === false) {
-    error_log("render_marp.php (Preview Mode): Marp CLI no encontrado. Ruta: " . ROOT_PATH . '/node_modules/@marp-team/marp-cli/marp-cli.js');
-    send_json_error_preview(500, 'Error de configuración del servidor: Marp CLI no encontrado (vista previa).');
-    return;
-}
-
-$tmpMdFilePreview = tempnam(sys_get_temp_dir(), 'marp_md_preview_');
-if ($tmpMdFilePreview === false) {
-    error_log("render_marp.php (Preview Mode): Error creando archivo temporal MD para vista previa.");
-    send_json_error_preview(500, 'Error interno del servidor al crear archivo temporal (vista previa).');
+$tmpMdFile = tempnam(sys_get_temp_dir(), 'marp_md_');
+if ($tmpMdFile === false) {
+    error_log("Error creando archivo temporal para Markdown.");
+    send_json_error(500, 'Error interno del servidor al crear archivo temporal.');
     return;
 }
 
 // Añadir extensión .md para que Marp lo reconozca mejor
-$tmpMdFilePreviewWithExt = $tmpMdFilePreview . '.md';
-if (!rename($tmpMdFilePreview, $tmpMdFilePreviewWithExt)) {
-    error_log("render_marp.php (Preview Mode): Advertencia, no se pudo renombrar temp MD a .md: " . $tmpMdFilePreview);
-    // Usar $tmpMdFilePreview si rename falla
+$tmpMdFileWithExt = $tmpMdFile . '.md';
+if (!rename($tmpMdFile, $tmpMdFileWithExt)) {
+    // Si rename falla (ej. permisos), usar el nombre original sin extensión
+    // Marp podría aun así funcionar, pero es mejor con la extensión.
+    error_log("Advertencia: No se pudo renombrar el archivo temporal a .md: " . $tmpMdFile);
+    // Continuar con $tmpMdFile (el que no tiene .md) si $tmpMdFileWithExt falló
+    // O podrías decidir fallar aquí si la extensión es crítica para tu Marp CLI.
+    // $tmpMdFileWithExt = $tmpMdFile; // Esto es redundante si rename falló y no cambiaste $tmpMdFile.
+    // Si rename falló, $tmpMdFile es el que existe.
 } else {
-    $tmpMdFilePreview = $tmpMdFilePreviewWithExt;
+    $tmpMdFile = $tmpMdFileWithExt; // Usar el archivo renombrado
 }
 
 
-if (file_put_contents($tmpMdFilePreview, $markdownContentPreview) === false) {
-    error_log("render_marp.php (Preview Mode): Error escribiendo en archivo temporal MD: " . $tmpMdFilePreview);
-    if (file_exists($tmpMdFilePreview)) unlink($tmpMdFilePreview);
-    send_json_error_preview(500, 'Error interno del servidor al escribir archivo temporal (vista previa).');
+if (file_put_contents($tmpMdFile, $markdownContent) === false) {
+    error_log("Error escribiendo en archivo temporal Markdown: " . $tmpMdFile);
+    if (file_exists($tmpMdFile)) unlink($tmpMdFile); // Limpiar
+    send_json_error(500, 'Error interno del servidor al escribir archivo temporal.');
     return;
 }
 
 // Marp CLI con --html y sin -o (o con -o -) debería imprimir HTML a stdout
-$commandPreview = sprintf(
-    '%s "%s" %s --html --allow-local-files --html -o -',
-    escapeshellcmd($nodeExecutablePathPreview),
-    $marpCliScriptPathPreview,
-    escapeshellarg($tmpMdFilePreview)
+$command = sprintf(
+    '%s "%s" %s --html --allow-local-files -o -',
+    escapeshellcmd($nodeExecutablePath), // Escapar el comando node
+    $marpCliScriptPath,                  // Ruta al script JS de Marp, no necesita escapeshellcmd si es una ruta fija y confiable
+    escapeshellarg($tmpMdFile)           // Argumento de archivo, siempre escapar
 );
 
-// error_log("render_marp.php (Preview Mode): Ejecutando Comando: " . $commandPreview); // Para debug
+// error_log("Ejecutando Comando para Marp HTML: " . $command); // Para debug
 
-$descriptorspecPreview = [ 0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"] ];
-$pipesPreview = [];
-$cwdPreview = ROOT_PATH; // Especificar CWD para Marp CLI
-$processPreview = proc_open($commandPreview, $descriptorspecPreview, $pipesPreview, $cwdPreview);
+$descriptorspec = [ 0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"] ];
+$pipes = [];
+$process = proc_open($command, $descriptorspec, $pipes, sys_get_temp_dir());
 
-$htmlOutputPreview = '';
-$errorOutputPreview = '';
+$htmlOutput = '';
+$errorOutput = '';
 
-if (is_resource($processPreview)) {
-    fclose($pipesPreview[0]); 
-    $htmlOutputPreview = stream_get_contents($pipesPreview[1]); fclose($pipesPreview[1]);
-    $errorOutputPreview = stream_get_contents($pipesPreview[2]); fclose($pipesPreview[2]);
-    $return_status_preview = proc_close($processPreview);
+if (is_resource($process)) {
+    fclose($pipes[0]); // Cerramos stdin
+    $htmlOutput = stream_get_contents($pipes[1]); fclose($pipes[1]);
+    $errorOutput = stream_get_contents($pipes[2]); fclose($pipes[2]);
+    $return_status = proc_close($process);
 } else {
-    $return_status_preview = -1;
-    $errorOutputPreview = "Error al iniciar el proceso de Marp CLI para vista previa.";
+    $return_status = -1;
+    $errorOutput = "Error al iniciar el proceso de Marp CLI.";
 }
 
-if (file_exists($tmpMdFilePreview)) {
-    unlink($tmpMdFilePreview); 
+if (file_exists($tmpMdFile)) {
+    unlink($tmpMdFile); // Limpiar siempre el archivo temporal de entrada
 }
 
-if ($return_status_preview === 0 && !empty($htmlOutputPreview)) {
+if ($return_status === 0 && !empty($htmlOutput)) {
     if (!headers_sent()) {
         header('Content-Type: text/html; charset=utf-8');
     }
-    echo $htmlOutputPreview; 
+    echo $htmlOutput; // Enviar el HTML renderizado
 } else {
-    $logMsgPreview = "render_marp.php (Preview Mode): Error ejecutando Marp CLI (HTML). Código: $return_status_preview. Comando: $commandPreview. Stderr: $errorOutputPreview. Stdout (parcial): " . substr($htmlOutputPreview, 0, 200);
-    error_log($logMsgPreview);
-    send_json_error_preview(500, 'Error al generar la vista previa Marp desde el servidor.', $errorOutputPreview ?: 'No hubo salida de error específica.');
+    $logMsg = "Error ejecutando Marp CLI (HTML). Código: $return_status. Comando: $command. Stderr: $errorOutput. Stdout (parcial): " . substr($htmlOutput, 0, 200);
+    error_log($logMsg);
+    // Si el controlador incluye este script y queremos que el controlador maneje el error HTTP:
+    // throw new \RuntimeException("Error al generar vista previa Marp: " . $errorOutput);
+    // O si este script debe responder directamente como API:
+    send_json_error(500, 'Error al generar la vista previa Marp desde el servidor.', $errorOutput ?: 'No hubo salida de error específica.');
 }
 // No más exit() aquí si va a ser incluido y el controlador maneja el flujo.
+// Si este script es el endpoint final, aquí iría un exit().
 ?>

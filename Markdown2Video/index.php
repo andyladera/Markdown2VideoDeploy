@@ -158,9 +158,7 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
     elseif ($actionName === 'download-page' && $_SERVER['REQUEST_METHOD'] === 'GET') { 
         $methodToCall = 'showPdfDownloadPage'; 
     } elseif ($actionName === 'force-download-pdf' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $methodToCall = 'forceDownloadPdf'; 
-    } elseif ($actionName === 'generate-marp-file' && $_SERVER['REQUEST_METHOD'] === 'POST') { // Nueva ruta para MarpAdd commentMore actions
-    $methodToCall = 'generateMarpFile';
+        $methodToCall = 'forceDownloadPdf';
     }
     // --- ¡NUEVAS RUTAS DE IMÁGENES EN MARKDOWNCONTROLLER! ---
     elseif ($actionName === 'upload-image' && $_SERVER['REQUEST_METHOD'] === 'POST') {
