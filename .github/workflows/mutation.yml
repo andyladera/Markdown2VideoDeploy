@@ -31,10 +31,6 @@ jobs:
           if [ ! -f vendor/bin/infection ]; then
             composer require --dev infection/infection
           fi
-          # Verifica si infection.json existe, si no lo genera
-          if [ ! -f infection.json ]; then
-            vendor/bin/infection --init --no-interaction
-          fi
 
       - name: 🧪 Ejecutar pruebas de mutación
         run: |
