@@ -29,6 +29,7 @@ jobs:
         coverage: xdebug
 
     - name: Install dependencies
+      working-directory: Markdown2Video
       run: composer install --prefer-dist --no-progress
 
     - name: Run PHPUnit with coverage
