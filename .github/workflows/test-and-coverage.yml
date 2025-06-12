@@ -27,7 +27,7 @@ jobs:
         run: mkdir -p docs/coverage
 
       - name: Ejecutar pruebas con cobertura
-        run: XDEBUG_MODE=coverage phpunit --coverage-html docs/coverage
+        run: XDEBUG_MODE=coverage phpunit --coverage-html docs/coverage tests
 
       - name: Ejecutar pruebas con cobertura
         run: phpunit --coverage-html docs/coverage tests
