@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit3f093d980b132fa613403bb33731e375
+class ComposerStaticInit919f78fc7cd64345a50d4db2e414baa7
 {
     public static $files = array (
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
@@ -585,6 +585,7 @@ class ComposerStaticInit3f093d980b132fa613403bb33731e375
         'PHPUnit\\Framework\\MockObject\\Generator\\SoapExtensionNotAvailableException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/SoapExtensionNotAvailableException.php',
         'PHPUnit\\Framework\\MockObject\\Generator\\TemplateLoader' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Generator/TemplateLoader.php',
         'PHPUnit\\Framework\\MockObject\\Generator\\UnknownClassException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownClassException.php',
+        'PHPUnit\\Framework\\MockObject\\Generator\\UnknownInterfaceException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownInterfaceException.php',
         'PHPUnit\\Framework\\MockObject\\Generator\\UnknownTraitException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownTraitException.php',
         'PHPUnit\\Framework\\MockObject\\Generator\\UnknownTypeException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownTypeException.php',
         'PHPUnit\\Framework\\MockObject\\IncompatibleReturnValueException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/MockObject/Exception/IncompatibleReturnValueException.php',
@@ -1415,9 +1416,9 @@ class ComposerStaticInit3f093d980b132fa613403bb33731e375
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit3f093d980b132fa613403bb33731e375::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit3f093d980b132fa613403bb33731e375::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit3f093d980b132fa613403bb33731e375::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit919f78fc7cd64345a50d4db2e414baa7::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit919f78fc7cd64345a50d4db2e414baa7::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit919f78fc7cd64345a50d4db2e414baa7::$classMap;
 
         }, null, ClassLoader::class);
     }
