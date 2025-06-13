@@ -45,7 +45,7 @@ jobs:
           tests
 
           # Renombrar para Infection (si es necesario)
-          cp coverage/junit.xml coverage/index.xml || echo "No se pudo copiar junit.xml"
+          # cp coverage/junit.xml coverage/index.xml || echo "No se pudo copiar junit.xml"
           ls -la coverage/
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
