@@ -7,7 +7,7 @@ $pageTitle = $pageTitle ?? 'Editor Marp';
 // Definir variable global JS para BASE_URL
 echo "<script>\n";
 echo "  window.BASE_APP_URL = " . json_encode($base_url) . ";\n";
-echo "  window.CSRF_TOKEN_MARP_GENERATE = " . json_encode($csrf_token_marp_generate ?? '') . ";\n"; // Token para generar PDF desde Marp
+// echo "  window.CSRF_TOKEN_MARP_EDITOR = " . json_encode($csrf_token_marp_editor) . ";\n"; // Si lo necesitas
 echo "</script>\n";
 ?>
 <!DOCTYPE html>
