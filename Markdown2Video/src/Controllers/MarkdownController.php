@@ -340,7 +340,7 @@ class MarkdownController
         }
 
         // 3. Ejecutar Marp CLI para generar las imágenes
-        $marpCliPath = ROOT_PATH . '/node_modules/.bin/marp';
+        $marpCliPath = 'node_modules/.bin/marp';
         if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
             $marpCliPath .= '.cmd'; // En Windows, se usa el script .cmd
         }
