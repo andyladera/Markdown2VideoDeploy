@@ -38,20 +38,25 @@ jobs:
       - name: 🧪 Ejecutar pruebas con cobertura
         run: |
           mkdir -p coverage
-          XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit --coverage-xml coverage tests
+          XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit \
+            --coverage-xml=coverage/coverage-xml \
+            --coverage-html=coverage/html \
+            --log-junit=coverage/junit.xml \
+            tests
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         run: |
           # Verificar que phpunit existe
           ls -la Markdown2Video/vendor/bin/phpunit
+          ls -la coverage/
         
-          # Asegurar permisos de ejecución
-          chmod +x Markdown2Video/vendor/bin/phpunit
-
+          # Ejecutar Infection con configuración detallada
           Markdown2Video/vendor/bin/infection \
-          --configuration=infection.json \
-          --coverage=coverage \
-          --verbose
+            --coverage=coverage \
+            --logger-html=infection-report \
+            --test-framework=phpunit \
+            --test-framework-options="--phpunit-path=./vendor/bin/phpunit" \
+            --verbose
 
       - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4
