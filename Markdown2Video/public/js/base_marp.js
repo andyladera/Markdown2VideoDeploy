@@ -1,16 +1,9 @@
 // public/js/base_marp.js
-
 document.addEventListener('DOMContentLoaded', function() {
     const editorTextareaMarp = document.getElementById('editor-marp');
     const previewDivMarp = document.getElementById('ppt-preview');
     const modeSelectMarp = document.getElementById('mode-select-marp-page');
     
-    const baseUrl = typeof window.BASE_APP_URL !== 'undefined' ? window.BASE_APP_URL : '';
-    if (baseUrl === '') {
-        console.warn("ADVERTENCIA: window.BASE_APP_URL no está definida. Funcionalidades pueden fallar.");
-    }
-    // const csrfTokenMarpEditor = typeof window.CSRF_TOKEN_MARP_EDITOR !== 'undefined' ? window.CSRF_TOKEN_MARP_EDITOR : '';
-
     let marpDebounceTimer;
 
     if (!editorTextareaMarp) {
@@ -42,10 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
         previewDivMarp.innerHTML = '<p>Generando vista previa Marp...</p>';
 
         try {
-            const renderEndpoint = baseUrl + '/markdown/render-marp-preview';
+            const renderEndpoint = '/markdown/render-marp-preview';
             const requestBody = `markdown=${encodeURIComponent(markdownText)}`;
             const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-            // if (csrfTokenMarpEditor) { headers['X-CSRF-TOKEN'] = csrfTokenMarpEditor; }
 
             const response = await fetch(renderEndpoint, { method: 'POST', headers: headers, body: requestBody });
 
@@ -62,19 +54,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // --- INICIO DE LA CORRECCIÓN CON DOMPURIFY ---
             if (typeof DOMPurify !== 'undefined') {
-                // Sanear el HTML antes de insertarlo
-                // Configuración básica: permite HTML estándar.
-                // Puedes necesitar configuraciones más específicas para Marp si elimina cosas importantes.
                 const cleanHtml = DOMPurify.sanitize(htmlResult, { 
                     USE_PROFILES: { html: true },
-                    // Ejemplo de configuración más permisiva si es necesario para Marp (¡USA CON PRECAUCIÓN!):
-                    // ADD_TAGS: ['section', 'svg', 'foreignObject', 'style'], // Añade etiquetas que Marp usa
-                    // ADD_ATTR: ['data-marpit-slide-index', 'data-line', 'viewBox'] // Añade atributos que Marp usa
-                    // Investiga qué etiquetas/atributos específicos usa Marp y DOMPurify podría estar quitando.
                 });
                 previewDivMarp.innerHTML = cleanHtml;
             } else {
-                // Fallback si DOMPurify no está cargado (menos seguro, como antes)
                 console.warn("DOMPurify no está cargado. El HTML de la previsualización se inserta sin saneamiento adicional del lado del cliente.");
                 previewDivMarp.innerHTML = htmlResult;
             }
@@ -83,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error("Error al generar vista previa Marp:", error);
             if (previewDivMarp) {
-                previewDivMarp.innerHTML = ''; // Limpiar
+                previewDivMarp.innerHTML = '';
                 const errorParagraph = document.createElement('p');
                 errorParagraph.style.color = 'red';
                 errorParagraph.textContent = `Error al cargar la previsualización Marp: ${error.message}`;
@@ -103,8 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modeSelectMarp.addEventListener('change', function () {
             const selectedMode = this.value;
             if (selectedMode === 'markdown') {
-                if (baseUrl) { window.location.href = baseUrl + '/markdown/create'; }
-                else { console.error("BASE_URL no configurada (Marp)."); alert("Error de config.");}
+                window.location.href = '/markdown/create';
             } else if (selectedMode === 'marp') {
                 console.log("Modo Marp ya seleccionado.");
             }
@@ -132,27 +115,22 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.textContent = `Generando ${format.toUpperCase()}...`;
             
-            const originalButtonText = this.textContent; // Guardar para restaurar
+            const originalButtonText = this.textContent;
 
             try {
-                                let generateEndpoint;
+                let generateEndpoint;
                 if (format === 'mp4') {
-                    generateEndpoint = `${baseUrl}/markdown/generate-video-from-marp`;
+                    generateEndpoint = '/markdown/generate-video-from-marp';
                 } else {
-                    generateEndpoint = `${baseUrl}/markdown/generate-marp-file`;
+                    generateEndpoint = '/markdown/generate-marp-file';
                 }
                 const requestBody = new FormData();
                 requestBody.append('markdown', markdownContent);
                 requestBody.append('format', format);
-                // Añadir token CSRF si está configurado globalmente y es necesario para este endpoint
-                // if (typeof window.CSRF_TOKEN_MARP_GENERATE !== 'undefined') {
-                //     requestBody.append('csrf_token', window.CSRF_TOKEN_MARP_GENERATE);
-                // }
 
                 const response = await fetch(generateEndpoint, {
                     method: 'POST',
-                    body: requestBody 
-                    // headers: { 'X-CSRF-TOKEN': window.CSRF_TOKEN_MARP_GENERATE } // Si se envía como header
+                    body: requestBody
                 });
 
                 if (!response.ok) {
@@ -169,32 +147,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (result.success) {
-                    // Si el formato es MP4 y tenemos una URL de video, mostramos el reproductor
                     if (format === 'mp4' && result.videoUrl) {
                         const videoContainer = document.getElementById('video-result-container');
                         const videoPlayer = document.getElementById('generated-video');
                         const downloadLink = document.getElementById('download-video-link');
 
                         if (videoContainer && videoPlayer && downloadLink) {
-                            const fullVideoUrl = baseUrl + result.videoUrl;
-                            videoPlayer.src = fullVideoUrl;
-                            downloadLink.href = fullVideoUrl;
+                            videoPlayer.src = result.videoUrl;
+                            downloadLink.href = result.videoUrl;
                             videoContainer.style.display = 'block';
-                            videoPlayer.load(); // Cargar el nuevo video
+                            videoPlayer.load();
                             alert('¡Video generado con éxito!');
                         } else {
                             console.error('No se encontraron los elementos del reproductor de video.');
                             alert('¡Video generado! No se pudo mostrar el reproductor, pero puedes intentar recargar.');
                         }
                     } else if (result.downloadPageUrl) {
-                        // Para otros formatos como PDF, redirigir a la página de descarga
-                        window.location.href = baseUrl + result.downloadPageUrl;
+                        window.location.href = result.downloadPageUrl;
                     } else if (result.message) {
-                        // Para mensajes genéricos de éxito
                         alert(result.message);
                     }
                 } else {
-                    // Si la respuesta del servidor indica un fallo
                     const errorMessage = result.debug ? `${result.error}\n\nDEBUG: ${result.debug}` : result.error;
                     throw new Error(errorMessage || 'Falló la generación del archivo.');
                 }
@@ -203,10 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error(`Error al generar ${format.toUpperCase()}:`, error);
                 alert(`Hubo un error al generar el archivo ${format.toUpperCase()}:\n${error.message}`);
             } finally {
-                // Restaurar el botón
                 this.disabled = false;
-                // El texto del botón podría haber cambiado si la página se recarga, 
-                // pero si no, restaurarlo. Si hay redirección, esto no se ejecutará para ese botón.
                 if(this.dataset.format === 'pdf') this.textContent = 'Generar PDF';
                 else if(this.dataset.format === 'ppt') this.textContent = 'Generar PPT';
                 else if(this.dataset.format === 'mp4') this.textContent = 'Generar Video MP4';
