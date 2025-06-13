@@ -48,15 +48,14 @@ jobs:
         run: |
           # Verificar que phpunit existe
           ls -la Markdown2Video/vendor/bin/phpunit
-          ls -la coverage/
         
-          # Ejecutar Infection con configuración detallada
+          # Asegurar permisos de ejecución
+          chmod +x Markdown2Video/vendor/bin/phpunit
+
           Markdown2Video/vendor/bin/infection \
-            --coverage=coverage \
-            --logger-html=infection-report \
-            --test-framework=phpunit \
-            --test-framework-options="--phpunit-path=./vendor/bin/phpunit" \
-            --verbose
+          --configuration=infection.json \
+          --coverage=coverage \
+          --verbose
 
       - name: 📤 Subir reporte de mutación como artefacto
         uses: actions/upload-artifact@v4
