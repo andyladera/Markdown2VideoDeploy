@@ -41,7 +41,7 @@ jobs:
           XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit \
           --coverage-xml=coverage/clover.xml \
           --coverage-html=coverage/html \
-          --log-junit=coverage/junit.xml \
+          --log-junit=coverage/index.xml \
           tests
 
           # Renombrar junit.xml a index.xml para Infection
