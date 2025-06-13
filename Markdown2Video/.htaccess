@@ -1,18 +1,20 @@
-# Activar el motor de reescrituraAdd commentMore actions
+# Activar el motor de reescritura
 RewriteEngine On
 
 # Establecer la base de reescritura si tu proyecto está en un subdirectorio
 RewriteBase /
 
-# Opcional: Evitar listado de directoriosMore actions
+# Opcional: Evitar listado de directorios
 Options -Indexes
 
 # 1. Bloquear acceso a directorios sensibles
 RewriteRule ^(src|Views|vendor)/ - [F,L] # Asegúrate que estos directorios están en la raíz de /markdown2video/
-# 2. Bloquear acceso directo a archivos .php excepto index.php <--- SECCIÓN CORREGIDA
-RewriteCond %{REQUEST_URI} !^/index\.php$
-RewriteCond %{REQUEST_URI} \.php$ [NC]
-RewriteRule .* - [F,L]
+
+# 2. BLOQUEO TEMPORALMENTE DESACTIVADO PARA DEBUGGING
+# RewriteCond %{REQUEST_URI} !^/public/check_gd\.php$
+# RewriteCond %{REQUEST_URI} !^/index\.php$
+# RewriteCond %{REQUEST_URI} \.php$ [NC]
+# RewriteRule .* - [F,L]
 
 # 3. Reglas para el Front Controller (como ya tenías)
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -28,3 +30,4 @@ RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
 <FilesMatch "\.(env|config|example|md|gitignore|htaccess|htpasswd|ini|log|sh|inc|bak|sql)$">
     Order allow,deny
     Deny from all
+</FilesMatch>
