@@ -38,15 +38,14 @@ jobs:
       - name: 🧪 Ejecutar pruebas con cobertura
         run: |
           mkdir -p coverage
-          
-          # Ejecutar PHPUnit con los formatos correctos
-          XDEBUG_MODE=coverage ./Markdown2Video/vendor/bin/phpunit \
-            --coverage-clover=coverage/clover.xml \  # Formato Clover para Infection
-            --log-junit=coverage/junit.xml \        # Formato JUnit (NO renombrar)
-            --coverage-html=coverage/html \          # Opcional: HTML para visualización
-            tests
-      
-          # Verificar que se generaron los archivos
+          XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit \
+          --coverage-xml=coverage/clover.xml \
+          --coverage-html=coverage/html \
+          --log-junit=coverage/junit.xml \
+          tests
+
+          # Renombrar para Infection (si es necesario)
+          cp coverage/junit.xml coverage/index.xml || echo "No se pudo copiar junit.xml"
           ls -la coverage/
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
