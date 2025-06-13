@@ -339,10 +339,44 @@ class MarkdownController
             exit;
         }
 
-        // 3. Ejecutar Marp CLI para generar las imágenes
-        $marpCliPath = 'node_modules/.bin/marp';
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            $marpCliPath .= '.cmd'; // En Windows, se usa el script .cmd
+        // ... (código anterior)
+
+        // 3. Ejecutar Marp CLI (versión mejorada)
+        $marpCliPath = ROOT_PATH . '/node_modules/.bin/marp';
+        if (!file_exists($marpCliPath)) {
+            error_log("Marp CLI no encontrado en: $marpCliPath");
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Marp CLI no está instalado. Ejecuta: npm install @marp-team/marp-cli',
+            ]);
+            exit;
+        }
+
+        // Verificar contenido markdown
+        if (empty($markdownContent)) {
+            error_log("Markdown vacío o inválido");
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'El contenido Markdown está vacío']);
+            exit;
+        }
+
+        // Ejecutar Marp con más detalles de error
+        chdir($tempDir);
+        $command = escapeshellcmd($marpCliPath) . " --html --images png " . escapeshellarg($markdownFileName);
+        error_log("Ejecutando: $command");
+        exec($command . ' 2>&1', $exec_output, $exec_return_code);
+        error_log("Salida de Marp:\n" . implode("\n", $exec_output));
+
+        if ($exec_return_code !== 0) {
+            error_log("Error al ejecutar Marp. Código: $exec_return_code");
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Error al convertir Markdown a imágenes. Verifica el formato.',
+                'debug' => (ENVIRONMENT === 'development') ? $exec_output : null
+            ]);
+            exit;
         }
 
         // Guardar el directorio actual y cambiar al temporal para que Marp funcione de forma predecible
