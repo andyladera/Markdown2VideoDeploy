@@ -2,23 +2,19 @@
 namespace Dales\Markdown2video\Controllers;
 
 use PDO;
-use Dompdf\Dompdf;     
-use Dompdf\Options;  
-use Dales\Markdown2video\Models\ImageModel; 
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use FFMpeg\FFMpeg;
+use FFMpeg\Format\Video\X264;
+use FFMpeg\Coordinate\FrameRate;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
 
 class MarkdownController {
     private ?PDO $pdo;
 
-    // Se añade la propiedad para guardar la instancia del ImageModel.
-    private ?ImageModel $imageModel = null;
-
     public function __construct(?PDO $pdo = null) {
         $this->pdo = $pdo;
-        
-        if ($this->pdo) {
-            $this->imageModel = new ImageModel($this->pdo);
-        }
-
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
             header('Location: ' . BASE_URL . '/auth/login'); 
             exit();
@@ -27,28 +23,19 @@ class MarkdownController {
 
     /**
      */
-    // Reemplaza el método create() en src/Controllers/MarkdownController.php
-
     public function create(): void {
         $base_url = BASE_URL;
         $pageTitle = "Editor de Presentación (Markdown)";
         
-        // Token para PDF
+        // Token CSRF específico para acciones en esta página, como generar PDF
         if (empty($_SESSION['csrf_token_generate_pdf'])) { 
             $_SESSION['csrf_token_generate_pdf'] = bin2hex(random_bytes(32)); 
         }
         $csrf_token_generate_pdf = $_SESSION['csrf_token_generate_pdf'];
 
-        // --- CORRECCIÓN: Se añade la creación del token para acciones de imágenes ---
-        if (empty($_SESSION['csrf_token_image_action'])) { 
-            $_SESSION['csrf_token_image_action'] = bin2hex(random_bytes(32)); 
-        }
-        $csrf_token_image_action = $_SESSION['csrf_token_image_action'];
-
-        $viewPath = VIEWS_PATH . 'base_markdown.php';
+        $viewPath = VIEWS_PATH . 'base_markdown.php'; // Asume que es Views/base_markdown.php
         if (file_exists($viewPath)) {
-            // Ahora ambas variables ($csrf_token_generate_pdf y $csrf_token_image_action)
-            // existen y se pasan a la vista.
+            // Las variables $base_url, $pageTitle, $csrf_token_generate_pdf estarán disponibles
             require_once $viewPath;
         } else {
             $this->showErrorPage("Vista del editor Markdown no encontrada: " . $viewPath);
@@ -97,124 +84,6 @@ class MarkdownController {
         exit;
     }
 
-    // --- MÉTODOS PARA IMÁGENES (estos ya estaban bien, ahora funcionarán) ---
-
-    public function uploadImage(): void {
-        header('Content-Type: application/json');
-
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Petición inválida.']);
-            exit;
-        }
-        
-        if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_image_action'], $_POST['csrf_token'])) {
-             http_response_code(403);
-             echo json_encode(['success' => false, 'error' => 'Error de seguridad (CSRF).']);
-             exit;
-        }
-
-        if (!isset($_FILES['image_file']) || $_FILES['image_file']['error'] !== UPLOAD_ERR_OK) {
-            echo json_encode(['success' => false, 'error' => 'Error al subir el archivo.']);
-            exit;
-        }
-        if (empty($_POST['image_name'])) {
-            echo json_encode(['success' => false, 'error' => 'El nombre de la imagen es obligatorio.']);
-            exit;
-        }
-
-        $imageName = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['image_name']);
-        if (empty($imageName)) {
-            echo json_encode(['success' => false, 'error' => 'El nombre de la imagen contiene caracteres no válidos.']);
-            exit;
-        }
-        
-        $file = $_FILES['image_file'];
-        $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-        if (!in_array($file['type'], $allowedMimes) || $file['size'] > 5 * 1024 * 1024) { // 5MB Limit
-            echo json_encode(['success' => false, 'error' => 'Archivo no permitido o demasiado grande (máx 5MB).']);
-            exit;
-        }
-
-        $imageData = file_get_contents($file['tmp_name']);
-        if ($this->imageModel->saveImage($_SESSION['user_id'], $imageName, $file['name'], $imageData, $file['type'])) {
-            echo json_encode(['success' => true, 'message' => 'Imagen subida correctamente.']);
-        } else {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'No se pudo guardar la imagen. El nombre ya podría existir.']);
-        }
-        exit;
-    }
-
-    public function getUserImages(): void {
-        header('Content-Type: application/json');
-        if (!isset($_SESSION['user_id'])) {
-            http_response_code(403);
-            echo json_encode([]);
-            exit;
-        }
-        $images = $this->imageModel->getImagesByUserId($_SESSION['user_id']);
-        echo json_encode($images);
-        exit;
-    }
-
-
-    public function deleteImage(): void {
-        // Establecemos la cabecera JSON al principio.
-        header('Content-Type: application/json');
-
-        try {
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Petición inválida.']);
-                exit;
-            }
-
-            $data = json_decode(file_get_contents('php://input'), true);
-
-            // Si el JSON está mal formado o vacío
-            if (json_last_error() !== JSON_ERROR_NONE || !$data) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Datos de entrada inválidos.']);
-                exit;
-            }
-            
-            if (empty($data['csrf_token']) || !hash_equals($_SESSION['csrf_token_image_action'], $data['csrf_token'])) {
-                http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'Error de seguridad (CSRF).']);
-                exit;
-            }
-            
-            if (empty($data['id_image']) || !is_numeric($data['id_image'])) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Falta el ID de la imagen o es inválido.']);
-                exit;
-            }
-
-            // Si todas las validaciones pasan, intentamos borrar.
-            $wasDeleted = $this->imageModel->deleteImageByIdAndUserId((int)$data['id_image'], $_SESSION['user_id']);
-
-            if ($wasDeleted) {
-                // Éxito real
-                http_response_code(200);
-                echo json_encode(['success' => true, 'message' => 'Imagen eliminada correctamente.']);
-            } else {
-                // La consulta se ejecutó pero no borró nada (ID no encontrado o no pertenece al usuario)
-                http_response_code(404);
-                echo json_encode(['success' => false, 'error' => 'No se pudo eliminar la imagen: no se encontró o no te pertenece.']);
-            }
-
-        } catch (\Throwable $e) {
-            // Capturamos cualquier otro error inesperado
-            error_log("Error en deleteImage: " . $e->getMessage());
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Ocurrió un error inesperado en el servidor.']);
-        }
-        
-        // El exit ya no es estrictamente necesario aquí si no hay más código, pero es buena práctica.
-        exit;
-    }
-
     /**
      */
     public function generatePdfFromHtml(): void {
@@ -223,118 +92,64 @@ class MarkdownController {
             echo json_encode(['success' => false, 'error' => 'Petición incorrecta o falta contenido HTML.']);
             exit;
         }
+
+        // VALIDAR TOKEN CSRF (si lo estás usando para esta acción)
+        // El nombre del token en $_POST debe ser 'csrf_token_generate_pdf'
         if (empty($_POST['csrf_token_generate_pdf']) || !hash_equals($_SESSION['csrf_token_generate_pdf'] ?? '', $_POST['csrf_token_generate_pdf'])) {
             http_response_code(403); header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Token CSRF inválido o faltante.']);
             exit;
         }
 
+        $htmlContent = $_POST['html_content'];
+
+        $clean_html = $htmlContent; 
+
+        $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
+        $userTempDir = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath . '/';
+        if (!is_dir($userTempDir)) { if (!mkdir($userTempDir, 0775, true) && !is_dir($userTempDir)) { /* ... error ... */ exit; } }
+
+        $pdfFileName = 'preview_md_' . time() . '_' . bin2hex(random_bytes(3)) . '.pdf';
+        $outputPdfFile = $userTempDir . $pdfFileName;
+
         try {
-            $htmlContent = $_POST['html_content'];
-            $userId = $_SESSION['user_id'];
-            $pattern = '/<img src="([^"]*\/image\/serve\/([^"]+))"/i';
-            
-            $callback = function ($matches) use ($userId) {
-                $originalSrc = $matches[1];
-                $imageName = urldecode($matches[2]);
-                $imageDetails = $this->imageModel->getImageByNameAndUserId($imageName, $userId);
-
-                if ($imageDetails) {
-                    $imageData = $imageDetails['image_data'];
-                    $mimeType = $imageDetails['mime_type'];
-                    $finalImageData = $imageData; 
-
-                    if (extension_loaded('gd')) {
-                        $sourceImage = @imagecreatefromstring($imageData);
-
-                        if ($sourceImage !== false) {
-                            $maxImageWidthInPdf = 650; 
-                            $originalWidth = imagesx($sourceImage);
-                            
-                            if ($originalWidth > $maxImageWidthInPdf) {
-                                $originalHeight = imagesy($sourceImage);
-                                
-                                // --- CORRECCIÓN DE LA FÓRMULA ---
-                                $ratio = $originalHeight / $originalWidth;
-                                $newWidth = $maxImageWidthInPdf;
-                                $newHeight = $newWidth * $ratio;
-
-                                // --- CORRECCIÓN CLAVE: Redondeamos los valores a enteros ---
-                                $newWidthInt = (int) round($newWidth);
-                                $newHeightInt = (int) round($newHeight);
-                                
-                                $resizedImage = imagecreatetruecolor($newWidthInt, $newHeightInt);
-                                
-                                if ($mimeType == 'image/png' || $mimeType == 'image/gif') {
-                                    imagealphablending($resizedImage, false);
-                                    imagesavealpha($resizedImage, true);
-                                    $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
-                                    imagefilledrectangle($resizedImage, 0, 0, $newWidthInt, $newHeightInt, $transparent);
-                                }
-
-                                imagecopyresampled($resizedImage, $sourceImage, 0, 0, 0, 0, $newWidthInt, $newHeightInt, $originalWidth, $originalHeight);
-                                
-                                ob_start();
-                                switch ($mimeType) {
-                                    case 'image/png': imagepng($resizedImage); break;
-                                    case 'image/gif': imagegif($resizedImage); break;
-                                    default: imagejpeg($resizedImage, null, 85); break;
-                                }
-                                $resizedImageData = ob_get_clean();
-                                
-                                if ($resizedImageData) {
-                                    $finalImageData = $resizedImageData;
-                                }
-                                
-                                imagedestroy($resizedImage);
-                            }
-                            imagedestroy($sourceImage);
-                        } else {
-                            error_log("Advertencia: No se pudo procesar la imagen '{$imageName}'.");
-                        }
-                    }
-                
-                    $base64Image = base64_encode($finalImageData);
-                    $dataUri = 'data:' . $mimeType . ';base64,' . $base64Image;
-                    return str_replace($originalSrc, $dataUri, $matches[0]);
-                }
-                return $matches[0];
-            };
-
-            $boundCallback = $callback->bindTo($this, $this);
-            $htmlContent = preg_replace_callback($pattern, $boundCallback, $htmlContent);
-            
-            $clean_html = $htmlContent; 
-            
-            $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
-            $userTempDir = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath . '/';
-            if (!is_dir($userTempDir)) { if (!mkdir($userTempDir, 0775, true) && !is_dir($userTempDir)) { exit; } }
-            $pdfFileName = 'preview_md_' . time() . '_' . bin2hex(random_bytes(3)) . '.pdf';
-            $outputPdfFile = $userTempDir . $pdfFileName;
-            
             $options = new Options();
-            $options->set('isHtml5ParserEnabled', true); 
-            $options->set('isRemoteEnabled', true);
-            $options->set('defaultFont', 'DejaVu Sans');
+            $options->set('isHtml5ParserEnabled', true);
+            $options->set('isRemoteEnabled', true); 
+
             $dompdf = new Dompdf($options);
-            $cssPdf = file_exists(ROOT_PATH . '/public/css/pdf_styles.css') ? file_get_contents(ROOT_PATH . '/public/css/pdf_styles.css') : '';
+            
+            $cssBaseMarkdown = file_exists(ROOT_PATH . '/public/css/base_markdown.css') ? file_get_contents(ROOT_PATH . '/public/css/base_markdown.css') : '';
+            $cssHeader = file_exists(ROOT_PATH . '/public/css/header.css') ? file_get_contents(ROOT_PATH . '/public/css/header.css') : '';
+
             $fullHtml = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Documento</title>';
-            $fullHtml .= '<style>' . $cssPdf . '</style>';
-            $fullHtml .= '</head><body>' . $clean_html . '</body></html>';
+            $fullHtml .= '<style>' . $cssBaseMarkdown . $cssHeader . ' body { font-family: sans-serif; margin: 20px; } #ppt-preview { border: none!important; padding:0!important; background:transparent!important; } /* Ajustes para preview dentro del PDF */ </style>';
+            $fullHtml .= '</head><body><div class="preview-container"><div class="preview-body"><div id="ppt-preview" class="ppt-preview">' . $clean_html . '</div></div></div></body></html>';
+
             $dompdf->loadHtml($fullHtml);
-            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->setPaper('A4', 'landscape'); 
             $dompdf->render();
-            if (file_put_contents($outputPdfFile, $dompdf->output()) === false) { throw new \Exception("No se pudo guardar el archivo PDF generado."); }
+            
+            if (file_put_contents($outputPdfFile, $dompdf->output()) === false) {
+                throw new \Exception("No se pudo guardar el archivo PDF generado.");
+            }
+
             $_SESSION['pdf_download_file'] = $pdfFileName;
             $_SESSION['pdf_download_full_path'] = $outputPdfFile;
+
             header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'message' => 'PDF generado.','downloadPageUrl' => BASE_URL . '/markdown/download-page/' . urlencode($pdfFileName)]);
+            echo json_encode([
+                'success' => true,
+                'message' => 'PDF generado desde preview. Abriendo página de descarga...',
+                'downloadPageUrl' => '/markdown/download-page/' . urlencode($pdfFileName)
+            ]);
             exit;
 
-        } catch (\Throwable $e) {
-            error_log("ERROR FATAL en generatePdfFromHtml: " . $e->getMessage() . " en " . $e->getFile() . " línea " . $e->getLine());
+        } catch (\Exception $e) {
+            error_log("Error generando PDF con Dompdf: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             http_response_code(500); header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Error interno al generar el PDF.']);
+            echo json_encode(['success' => false, 'error' => 'Error al generar el archivo PDF.', 'debug' => (ENVIRONMENT === 'development' ? $e->getMessage() : 'Error interno.')]);
+            if (file_exists($outputPdfFile)) unlink($outputPdfFile);
             exit;
         }
     }
@@ -352,12 +167,7 @@ class MarkdownController {
             $downloadLink = BASE_URL . '/markdown/force-download-pdf/' . urlencode($filename);
             $actual_filename = $filename;
             require_once VIEWS_PATH . '/download_pdf.php';
-        } else { 
-            // Manejo de error básico
-            http_response_code(404);
-            echo "Archivo no encontrado o sesión inválida.";
-            exit;
-        }
+        } else { /* ... manejo de error ... */ exit; }
     }
     
     public function forceDownloadPdf(string $filenameFromUrl): void {
@@ -367,25 +177,271 @@ class MarkdownController {
         $currentDiskPath = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath . '/' . $filename;
 
         if ($expectedSessionPath === $currentDiskPath && file_exists($currentDiskPath)) {
-            header('Content-Description: File Transfer');
+            header('Content-Description: File Transfer'); /* ... (resto de headers para descarga) ... */
             header('Content-Type: application/pdf');
             header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Expires: 0');
             header('Cache-Control: must-revalidate');
             header('Pragma: public');
             header('Content-Length: ' . filesize($currentDiskPath));
-            flush(); 
-            readfile($currentDiskPath);
+            flush(); readfile($currentDiskPath);
             unlink($currentDiskPath);
             unset($_SESSION['pdf_download_file'], $_SESSION['pdf_download_full_path']);
             exit;
-        } else { 
-            http_response_code(404);
-            echo "Archivo no encontrado o acceso no autorizado.";
-            exit;
-        }
+        } else { exit; }
     }
 
     private function showErrorPage(string $logMessage, string $userMessage = "Error."): void { /* ... */ }
 
+    public function generateMarpFile(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405); // Method Not Allowed
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Método no permitido. Se esperaba POST.']);
+            exit;
+        }
+
+        $markdownContent = $_POST['markdown'] ?? null;
+        $format = $_POST['format'] ?? null;
+
+        if (empty($markdownContent) || empty($format)) {
+            http_response_code(400); // Bad Request
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Faltan datos: markdown o formato.']);
+            exit;
+        }
+
+        // Por ahora, solo implementamos PDF. Otros formatos se pueden añadir después.
+        if ($format !== 'pdf') {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => "Formato '{$format}' no soportado actualmente para la generación Marp."]);
+            exit;
+        }
+
+        // Preparar para llamar al script de renderizado/generación de Marp
+        // Este script necesitará ser adaptado para manejar diferentes formatos y devolver la ruta del archivo.
+        $renderScriptPath = ROOT_PATH . '/server/render_marp.php';
+        if (!file_exists($renderScriptPath)) {
+            error_log("Script render_marp.php no encontrado: " . $renderScriptPath);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Error interno del servidor (script de generación no encontrado).']);
+            exit;
+        }
+
+        // Crear un nombre de archivo único para el PDF
+        $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
+        $outputDir = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath;
+        if (!is_dir($outputDir)) {
+            if (!mkdir($outputDir, 0775, true) && !is_dir($outputDir)) {
+                error_log("No se pudo crear el directorio temporal para PDFs Marp: " . $outputDir);
+                http_response_code(500);
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Error interno al crear directorio temporal.']);
+                exit;
+            }
+        }
+
+        $pdfFileName = 'marp_presentation_' . time() . '_' . bin2hex(random_bytes(4)) . '.pdf';
+        $outputPdfFile = $outputDir . '/' . $pdfFileName;
+
+        // Pasar datos al script render_marp.php. Podríamos usar variables de entorno o POST simulado si el script es un endpoint.
+        // Por simplicidad, si render_marp.php es un script PHP que podemos incluir y que usa variables globales:
+        $_MARP_MARKDOWN_CONTENT = $markdownContent;
+        $_MARP_OUTPUT_FORMAT = $format; // 'pdf'
+        $_MARP_OUTPUT_FILE_PATH = $outputPdfFile;
+
+        ob_start();
+        include $renderScriptPath; // Este script debería generar el archivo en $_MARP_OUTPUT_FILE_PATH
+        $scriptOutput = ob_get_clean(); // Capturar cualquier salida del script (debería ser JSON o nada)
+
+        unset($_MARP_MARKDOWN_CONTENT, $_MARP_OUTPUT_FORMAT, $_MARP_OUTPUT_FILE_PATH); // Limpiar variables globales
+
+        // El script render_marp.php debería indicar éxito o error.
+        // Asumimos que si el archivo PDF existe, fue exitoso.
+        // Una mejor implementación sería que render_marp.php devuelva JSON.
+        if (file_exists($outputPdfFile) && filesize($outputPdfFile) > 0) {
+            $_SESSION['pdf_download_file'] = $pdfFileName;
+            $_SESSION['pdf_download_full_path'] = $outputPdfFile;
+
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Archivo PDF generado desde Marp con éxito.',
+                'downloadPageUrl' => '/markdown/download-page/' . urlencode($pdfFileName)
+            ]);
+            exit;
+        } else {
+            error_log("render_marp.php no generó el archivo PDF esperado o el archivo está vacío. Ruta: {$outputPdfFile}. Salida del script: {$scriptOutput}");
+            if (file_exists($outputPdfFile)) unlink($outputPdfFile); // Limpiar archivo vacío si existe
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Error al generar el archivo PDF desde Marp.', 'debug_script_output' => (ENVIRONMENT === 'development' ? $scriptOutput : null)]);
+            exit;
+        }
+    }
+
+    public function generateVideoFromMarp(): void {
+        header('Content-Type: application/json');
+
+        $markdownContent = $_POST['markdown'] ?? null;
+        if (empty($markdownContent)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Falta contenido markdown.']);
+            exit;
+        }
+
+        // 1. Crear un directorio temporal único
+        $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
+        $uniqueJobId = time() . '_' . bin2hex(random_bytes(4));
+        $tempDir = ROOT_PATH . '/public/temp_files/videos/' . $userIdForPath . '/' . $uniqueJobId;
+
+        if (!is_dir($tempDir) && !mkdir($tempDir, 0775, true)) {
+            error_log("No se pudo crear el directorio temporal para el video: " . $tempDir);
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Error interno al crear directorio temporal.']);
+            exit;
+        }
+
+        // 2. Guardar el Markdown en un archivo temporal
+        $markdownFilePath = $tempDir . '/input.md';
+        if (file_put_contents($markdownFilePath, $markdownContent) === false) {
+            error_log("No se pudo escribir el archivo markdown temporal en: " . $markdownFilePath);
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Error interno al guardar el archivo markdown.']);
+            exit;
+        }
+
+        // 3. Ejecutar Marp CLI para generar las imágenes
+        $marpCliPath = ROOT_PATH . '/node_modules/.bin/marp';
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $marpCliPath .= '.cmd'; // En Windows, se usa el script .cmd
+        }
+
+        // Guardar el directorio actual y cambiar al temporal para que Marp funcione de forma predecible
+        $original_cwd = getcwd();
+        chdir($tempDir);
+
+        // El nombre del archivo de entrada ahora es relativo al directorio temporal
+        $markdownFileName = 'input.md'; 
+        $escapedMarkdownFile = escapeshellarg($markdownFileName);
+
+        // Comando simplificado: Marp usará el CWD (que es $tempDir) para la salida
+        // Generará input.html, input.001.png, input.002.png, etc.
+        $command = escapeshellarg($marpCliPath) . " --html --images png {$escapedMarkdownFile}";
+
+        $exec_output = null;
+        $exec_return_code = null;
+        exec($command . ' 2>&1', $exec_output, $exec_return_code);
+
+        // Restaurar el directorio de trabajo original
+        chdir($original_cwd);
+
+        // 4. Comprobar si el comando tuvo éxito
+        if ($exec_return_code !== 0) {
+            error_log("Marp CLI falló con código {$exec_return_code}. Comando: {$command}. Salida: " . implode("\n", $exec_output));
+            http_response_code(500);
+            echo json_encode([
+                'success' => false, 
+                'error' => 'Error al convertir diapositivas a imágenes.',
+                'debug' => (ENVIRONMENT === 'development' ? $exec_output : null)
+            ]);
+            exit;
+        }
+
+        // 5. Contar las imágenes generadas para verificar
+        $imageFiles = glob($tempDir . '/*.png');
+        $imageCount = count($imageFiles);
+
+        if ($imageCount === 0) {
+            error_log("Marp CLI se ejecutó pero no se encontraron imágenes PNG en {$tempDir}. Salida: " . implode("\n", $exec_output));
+            http_response_code(500);
+            echo json_encode([
+                'success' => false, 
+                'error' => 'La conversión se completó pero no se generaron imágenes.',
+                'debug' => (ENVIRONMENT === 'development' ? $exec_output : null)
+            ]);
+            exit;
+        }
+
+        // 6. Configurar el logger para FFmpeg
+        // Usar el directorio temporal del sistema para evitar problemas de permisos.
+        $logFile = sys_get_temp_dir() . '/ffmpeg.log';
+        // Limpiar el log anterior en cada ejecución para tener información fresca.
+        if (file_exists($logFile)) { unlink($logFile); }
+        $logger = new Logger('ffmpeg');
+        $logger->pushHandler(new StreamHandler($logFile, Logger::DEBUG));
+
+        // 7. Instanciar FFmpeg con las rutas y el logger
+        $ffmpeg = FFMpeg::create([
+            'ffmpeg.binaries'  => 'C:/ffmpeg/bin/ffmpeg.exe',
+            'ffprobe.binaries' => 'C:/ffmpeg/bin/ffprobe.exe',
+            'timeout'          => 3600, // Tiempo máximo de espera para el proceso
+            'ffmpeg.threads'   => 12,   // Hilos a usar por FFMpeg
+        ], $logger);
+
+        // 8. Preparar para la creación del video
+        $videoPath = $tempDir . '/output.mp4';
+        $durationPerSlide = 3; // 3 segundos por diapositiva
+        $inputFramerate = 1 / $durationPerSlide;
+
+        // El patrón de las imágenes generadas por Marp es 'input.001.png', etc.
+        $imagePattern = $tempDir . '/input.%03d.png';
+
+        try {
+            // La API de alto nivel de php-ffmpeg (open, openAdvanced) tiene problemas para establecer
+            // el framerate de entrada para secuencias de imágenes, que es la única forma de controlar
+            // la duración de cada diapositiva.
+            // La solución más robusta es usar el 'driver' de bajo nivel para construir y ejecutar
+            // el comando de FFmpeg directamente, dándonos control total sobre los parámetros.
+
+            $ffmpeg->getFFMpegDriver()->command([
+                '-framerate', strval($inputFramerate), // Opción de ENTRADA: duración de cada imagen
+                '-i', $imagePattern,                   // Archivos de entrada
+                '-c:v', 'libx264',                     // Codec de video
+                '-r', '25',                            // Opción de SALIDA: framerate del video final
+                '-pix_fmt', 'yuv420p',                 // Formato de píxeles para máxima compatibilidad
+                $videoPath                             // Archivo de salida
+            ]);
+
+        } catch (\FFMpeg\Exception\ExceptionInterface $e) {
+            // Usamos nuestro logger para guardar el error detallado
+            if (isset($logger)) {
+                $logger->error("FFmpeg falló al crear el video.", ['exception' => $e]);
+            } else {
+                error_log("FFmpeg falló al crear el video: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            }
+            
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'error' => 'La codificación del video falló. Revisa el archivo de registro para más detalles.',
+                'log_file' => $logFile // Devolver la ruta completa al archivo de log
+            ]);
+            exit;
+        }
+
+        // 9. Devolver la URL del video si se creó correctamente
+        if (file_exists($videoPath)) {
+            // Limpiar las imágenes PNG que ya no necesitamos
+            foreach ($imageFiles as $file) {
+                unlink($file);
+            }
+            // Limpiar el archivo markdown temporal
+            unlink($markdownFilePath);
+
+            echo json_encode([
+                'success' => true,
+                'message' => '¡Video generado con éxito!',
+                'videoUrl' => str_replace(ROOT_PATH, '', $videoPath) // Ruta relativa para el frontend
+            ]);
+        } else {
+            error_log("El video no fue encontrado en la ruta esperada después de la ejecución de FFmpeg: " . $videoPath);
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Error interno: el archivo de video no se pudo crear.']);
+        }
+
+        exit;
+    }
 }
