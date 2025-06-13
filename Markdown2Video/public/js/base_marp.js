@@ -147,19 +147,19 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         if (!response.ok) {
+          const responseClone = response.clone(); // Clona la respuesta
           let errorDetail = "Error desconocido del servidor.";
           try {
-            const errorData = await response.json();
+            const errorData = await responseClone.json(); // Lee del clon
             errorDetail =
               errorData.error || errorData.message || JSON.stringify(errorData);
           } catch (e) {
-            errorDetail = await response.text();
+            errorDetail = await response.text(); // Lee el original si falla el JSON
           }
           throw new Error(
             `Error del servidor (${response.status}): ${errorDetail}`
           );
         }
-
         const result = await response.json();
 
         if (result.success) {
