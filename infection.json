@@ -9,7 +9,7 @@
   "tmpDir": ".infection",
   "phpUnit": {
     "configDir": ".",
-    "customPath": "Markdown2Video/vendor/bin/phpunit" // <-- Add this line
+    "customPath": "Markdown2Video/vendor/bin/phpunit" 
   },
   "mutators": {
     "@default": true
