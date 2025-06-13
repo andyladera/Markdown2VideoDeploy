@@ -39,10 +39,14 @@ jobs:
         run: |
           mkdir -p coverage
           XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit \
-          --coverage-xml=coverage/clover.xml \
+          --coverage-xml=coverage/phpunit \
           --coverage-html=coverage/html \
           --log-junit=coverage/junit.xml \
           tests
+
+          # Verificar estructura generada
+          ls -la coverage/
+          ls -la coverage/phpunit/
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         run: |
@@ -53,8 +57,9 @@ jobs:
           chmod +x Markdown2Video/vendor/bin/phpunit
 
           Markdown2Video/vendor/bin/infection \
-          --configuration=infection.json \
           --coverage=coverage \
+          --logger-html=infection-report \
+          --initial-tests-php-options="-d xdebug.mode=coverage" \
           --verbose
 
       - name: 📤 Subir reporte de mutación como artefacto
