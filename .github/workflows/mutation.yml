@@ -41,13 +41,11 @@ jobs:
           XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit \
           --coverage-xml=coverage/clover.xml \
           --coverage-html=coverage/html \
-          --log-junit=coverage/index.xml \
+          --log-junit=coverage/junit.xml \
           tests
 
-          # Renombrar junit.xml a index.xml para Infection
-          mv coverage/junit.xml coverage/index.xml
-
-          # Verificar estructura generada
+          # Renombrar para Infection (si es necesario)
+          mv coverage/junit.xml coverage/index.xml || echo "No se pudo renombrar junit.xml"
           ls -la coverage/
 
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
