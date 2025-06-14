@@ -59,4 +59,4 @@ flowchart TD
 ![media/diagrama_arquitectura.PNG](./media/diagrama_arquitectura.PNG)
 
 ## **Diagrama de despliegue**
-![media/diagrama_despliegue.PNG](./media/diagrama_despliegue.PNG)
+![media/diagrama_despliegue.jpeg](./media/diagrama_despliegue.jpeg)
