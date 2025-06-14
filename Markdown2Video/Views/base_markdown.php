@@ -64,38 +64,17 @@ echo "</script>\n";
     </div>
   </div>
 
-  <!-- ¡NUEVO! HTML completo del Modal para gestionar imágenes (colocado antes de los scripts) -->
-  <div id="imageModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <button class="modal-close" id="closeImageModalBtn">×</button>
-      <h2>Gestor de Imágenes</h2>
-      
-      <div class="modal-body">
-        <div class="upload-section">
-          <h3>Subir Nueva Imagen</h3>
-          <form id="uploadImageForm">
-            <div class="form-group">
-              <label for="image_name">Nombre de Referencia:</label>
-              <input type="text" id="image_name" name="image_name" required pattern="[a-zA-Z0-9_-]+" placeholder="mi_foto_1">
-              <small>Solo letras, números, guiones y guión bajo.</small>
-            </div>
-            <div class="form-group">
-              <label for="image_file">Seleccionar archivo (max 5MB):</label>
-              <input type="file" id="image_file" name="image_file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" required>
-            </div>
-            <button type="submit" class="submit-btn">Subir Imagen</button>
-          </form>
-          <div id="uploadStatus" class="status-message"></div>
-        </div>
-
-        <div class="gallery-section">
-          <h3>Mis Imágenes</h3>
-          <div id="imageGallery" class="image-gallery-grid">
-            <!-- Las imágenes se cargarán aquí con JavaScript -->
-            <p>Cargando imágenes...</p>
-          </div>
-        </div>
+    <!-- ¡NUEVO! Modal simple para copiar la sintaxis -->
+  <div id="copySyntaxModal" class="modal-overlay" style="display: none;">
+    <div class="copy-modal-content">
+      <h4>Copiar Sintaxis de Imagen</h4>
+      <p>Usa este código en tu editor para insertar la imagen:</p>
+      <input type="text" id="syntaxToCopy" readonly>
+      <div class="copy-modal-actions">
+        <button id="copySyntaxBtn" class="submit-btn">Copiar</button>
+        <button id="closeCopyModalBtn" class="cancel-btn">Cerrar</button>
       </div>
+      <small id="copyStatusMessage" class="copy-status"></small>
     </div>
   </div>
 
