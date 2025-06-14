@@ -9,11 +9,11 @@ variable "db_name" {
 
 variable "db_username" {
   description = "Usuario administrador del RDS"
-  default     = ""
+  default     = "admin"
 }
 
 variable "db_password" {
   description = "Contraseña del RDS"
   sensitive   = true
-  default     = ""  # Idealmente usar `terraform.tfvars` o `secrets` para esto
+  default     = "admin1234"  # Idealmente usar `terraform.tfvars` o `secrets` para esto
 }
