@@ -53,10 +53,10 @@ flowchart TD
 
 
 ## **Diagrama de clases**
-![media/diagrama_clases.png](./media/diagrama_clases.png)
+![media/diagrama_clases.PNG](./media/diagrama_clases.PNG)
 
 ## **Diagrama de despliegue**
-![media/diagrama_arquitectura.png](./media/diagrama_arquitectura.png)
+![media/diagrama_arquitectura.PNG](./media/diagrama_arquitectura.PNG)
 
 ## **Diagrama de despliegue**
-![media/diagrama_despliegue.png](./media/diagrama_despliegue.png)
+![media/diagrama_despliegue.PNG](./media/diagrama_despliegue.PNG)
