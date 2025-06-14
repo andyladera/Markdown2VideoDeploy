@@ -386,6 +386,87 @@ class MarkdownController {
         }
     }
 
+    /**
+     * Genera un archivo PDF a partir de contenido Markdown usando Marp CLI.
+     * Ruta: POST /markdown/generate-marp-pdf
+     */
+    public function generateMarpPdf(): void {
+        // 1. Validar la petición y obtener datos
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405); // Method Not Allowed
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Método no permitido.']);
+            exit;
+        }
+
+        $json_data = file_get_contents('php://input');
+        $data = json_decode($json_data, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($data['markdown'])) {
+            http_response_code(400); // Bad Request
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Datos JSON inválidos o falta el contenido markdown.']);
+            exit;
+        }
+
+        $markdownContent = $data['markdown'];
+
+        // 2. Crear archivos temporales de forma segura
+        $tempDir = sys_get_temp_dir();
+        $uniqueId = bin2hex(random_bytes(8)); // ID más seguro y corto
+        $markdownFilePath = $tempDir . DIRECTORY_SEPARATOR . 'marp_' . $uniqueId . '.md';
+        $pdfFilePath = $tempDir . DIRECTORY_SEPARATOR . 'marp_' . $uniqueId . '.pdf';
+
+        if (file_put_contents($markdownFilePath, $markdownContent) === false) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'No se pudo escribir el archivo markdown temporal.']);
+            exit;
+        }
+
+        // 3. Construir y ejecutar el comando Marp CLI
+        // Usamos npx para asegurar que se use la versión local de marp-cli si está disponible
+        // --allow-local-files es crucial para que Marp pueda acceder a imágenes locales si las hubiera
+        $command = sprintf(
+            'npx @marp-team/marp-cli@latest %s -o %s --pdf --allow-local-files',
+            escapeshellarg($markdownFilePath),
+            escapeshellarg($pdfFilePath)
+        );
+
+        // Redirigir stderr a stdout para capturar cualquier salida de error
+        $command .= ' 2>&1';
+        
+        $output = shell_exec($command);
+
+        // 4. Verificar el resultado y enviar el archivo
+        if (file_exists($pdfFilePath) && filesize($pdfFilePath) > 0) {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="presentacion.pdf"');
+            header('Content-Length: ' . filesize($pdfFilePath));
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            readfile($pdfFilePath);
+        } else {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            // Devolver el output del comando para ayudar a depurar
+            echo json_encode([
+                'error' => 'Marp CLI falló al generar el PDF.',
+                'details' => $output
+            ]);
+        }
+
+        // 5. Limpieza de archivos temporales
+        if (file_exists($markdownFilePath)) {
+            unlink($markdownFilePath);
+        }
+        if (file_exists($pdfFilePath)) {
+            unlink($pdfFilePath);
+        }
+        exit; // Terminar el script para no enviar más salida
+    }
+
     private function showErrorPage(string $logMessage, string $userMessage = "Error."): void {
         error_log($logMessage);
         http_response_code(500);
