@@ -88,4 +88,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setTimeout(updateMarpPreview, 100);
+
+    // --- NUEVA FUNCIONALIDAD: Generar Archivo ---
+    const buttonContainer = document.querySelector('.button-container');
+
+    async function generateFile(format, button) {
+        const originalButtonText = button.innerHTML;
+        button.innerHTML = 'Generando...';
+        button.disabled = true;
+
+        const markdownContent = marpCodeMirrorEditor.getValue();
+
+        try {
+            const response = await fetch(`/markdown/generate-marp-${format}`,
+             {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ markdown: markdownContent })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Error desconocido del servidor' }));
+                throw new Error(errorData.error || 'La respuesta del servidor no fue OK.');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `presentacion.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (error) {
+            console.error(`Error al generar ${format.toUpperCase()}:`, error);
+            alert(`No se pudo generar el archivo ${format.toUpperCase()}: ${error.message}`);
+        } finally {
+            button.innerHTML = originalButtonText;
+            button.disabled = false;
+        }
+    }
+
+    if (buttonContainer) {
+        buttonContainer.addEventListener('click', function(event) {
+            const button = event.target.closest('.generate-btn');
+            if (button) {
+                event.preventDefault(); // Prevenir cualquier acción por defecto
+                const format = button.dataset.format;
+                if (format === 'pdf') { // Por ahora, solo manejamos PDF
+                    generateFile(format, button);
+                } else {
+                    alert(`La generación de ${format.toUpperCase()} aún no está implementada.`);
+                }
+            }
+        });
+    }
 });
