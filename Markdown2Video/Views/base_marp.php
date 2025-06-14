@@ -49,12 +49,6 @@ echo "</script>\n";
                 <button class="generate-btn" data-format="mp4">Generar Video MP4</button>
                 <button class="generate-btn" data-format="html">Generar HTML</button>
             </div>
-            <div id="video-result-container" class="video-result-container" style="display: none; margin-top: 20px;">
-                <h4>Video Generado</h4>
-                <video id="generated-video" controls width="100%"></video>
-                <br>
-                <a id="download-video-link" class="download-link" href="#" download="presentation.mp4" style="display: inline-block; margin-top: 10px;">Descargar Video</a>
-            </div>
         </div>
     </div>
 
@@ -62,7 +56,6 @@ echo "</script>\n";
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/mode/markdown/markdown.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/addon/edit/continuelist.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/addon/display/placeholder.js"></script>
-    
     <script src="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/public/js/base_marp.js"></script>
 </body>
 </html>

@@ -410,7 +410,6 @@ return array(
     'PHPUnit\\Framework\\MockObject\\Generator\\SoapExtensionNotAvailableException' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/SoapExtensionNotAvailableException.php',
     'PHPUnit\\Framework\\MockObject\\Generator\\TemplateLoader' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Generator/TemplateLoader.php',
     'PHPUnit\\Framework\\MockObject\\Generator\\UnknownClassException' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownClassException.php',
-    'PHPUnit\\Framework\\MockObject\\Generator\\UnknownInterfaceException' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownInterfaceException.php',
     'PHPUnit\\Framework\\MockObject\\Generator\\UnknownTraitException' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownTraitException.php',
     'PHPUnit\\Framework\\MockObject\\Generator\\UnknownTypeException' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Generator/Exception/UnknownTypeException.php',
     'PHPUnit\\Framework\\MockObject\\IncompatibleReturnValueException' => $vendorDir . '/phpunit/phpunit/src/Framework/MockObject/Exception/IncompatibleReturnValueException.php',
@@ -1235,5 +1234,4 @@ return array(
     'ValueError' => $vendorDir . '/symfony/polyfill-php80/Resources/stubs/ValueError.php',
     'staabm\\SideEffectsDetector\\SideEffect' => $vendorDir . '/staabm/side-effects-detector/lib/SideEffect.php',
     'staabm\\SideEffectsDetector\\SideEffectsDetector' => $vendorDir . '/staabm/side-effects-detector/lib/SideEffectsDetector.php',
-    '©' => $vendorDir . '/symfony/cache/Traits/ValueWrapper.php',
 );

@@ -2,48 +2,6 @@
 
 All notable changes of the PHPUnit 11.5 release series are documented in this file using the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
 
-## [11.5.23] - 2025-06-13
-
-### Fixed
-
-* [#6222](https://github.com/sebastianbergmann/phpunit/issues/6222): Data Provider seems to mess up Test Dependencies
-* `shortenArraysForExportThreshold` XML configuration setting has no effect on all arrays exported for event-related value objects
-
-## [11.5.22] - 2025-06-06
-
-### Changed
-
-* Do not treat warnings differently than other issues in summary section of default output
-
-## [11.5.21] - 2025-05-21
-
-### Changed
-
-* [#6210](https://github.com/sebastianbergmann/phpunit/pull/6210): Set default Clover coverage project name
-* [#6217](https://github.com/sebastianbergmann/phpunit/pull/6217): Improve the error message when `createStubForIntersectionOfInterfaces()` is called with a class
-
-## [11.5.20] - 2025-05-11
-
-### Fixed
-
-* [#6192](https://github.com/sebastianbergmann/phpunit/issues/6192): Reverted change made in PHPUnit 11.5.19 due to regression
-* [#6199](https://github.com/sebastianbergmann/phpunit/issues/6199): `assertEmpty()` and `assertNotEmpty()` use overly restrictive `phpstan-assert empty` directives
-
-## [11.5.19] - 2025-05-02
-
-### Added
-
-* `displayDetailsOnAllIssues` attribute on the `<phpunit>` element of the XML configuration file and `--display-all-issues` CLI option for controlling whether PHPUnit should display details on all issues that are triggered (default: `false`)
-* `failOnAllIssues` attribute on the `<phpunit>` element of the XML configuration file and `--fail-on-all-issues` CLI option for controlling whether PHPUnit should fail on all issues that are triggered (default: `false`)
-
-### Changed
-
-* [#5956](https://github.com/sebastianbergmann/phpunit/issues/5956): Improved handling of deprecated `E_STRICT` constant
-
-### Fixed
-
-* [#6192](https://github.com/sebastianbergmann/phpunit/issues/6192): Positive `%a` and `%A` matches are not ignored from diff when `EXPECTF` fails
-
 ## [11.5.18] - 2025-04-22
 
 ### Changed
@@ -214,11 +172,6 @@ All notable changes of the PHPUnit 11.5 release series are documented in this fi
 * [#6055](https://github.com/sebastianbergmann/phpunit/issues/6055): `assertNotContainsOnly()` (use `assertContainsNotOnlyArray()`, `assertContainsNotOnlyBool()`, `assertContainsNotOnlyCallable()`, `assertContainsNotOnlyFloat()`, `assertContainsNotOnlyInt()`, `assertContainsNotOnlyIterable()`, `assertContainsNotOnlyNumeric()`, `assertContainsNotOnlyObject()`, `assertContainsNotOnlyResource()`, `assertContainsNotOnlyClosedResource()`, `assertContainsNotOnlyScalar()`, or `assertContainsNotOnlyString()` instead)
 * [#6059](https://github.com/sebastianbergmann/phpunit/issues/6059): `containsOnly()` (use `containsOnlyArray()`, `containsOnlyBool()`, `containsOnlyCallable()`, `containsOnlyFloat()`, `containsOnlyInt()`, `containsOnlyIterable()`, `containsOnlyNumeric()`, `containsOnlyObject()`, `containsOnlyResource()`, `containsOnlyClosedResource()`, `containsOnlyScalar()`, or `containsOnlyString()` instead)
 
-[11.5.23]: https://github.com/sebastianbergmann/phpunit/compare/11.5.22...11.5.23
-[11.5.22]: https://github.com/sebastianbergmann/phpunit/compare/11.5.21...11.5.22
-[11.5.21]: https://github.com/sebastianbergmann/phpunit/compare/11.5.20...11.5.21
-[11.5.20]: https://github.com/sebastianbergmann/phpunit/compare/11.5.19...11.5.20
-[11.5.19]: https://github.com/sebastianbergmann/phpunit/compare/11.5.18...11.5.19
 [11.5.18]: https://github.com/sebastianbergmann/phpunit/compare/11.5.17...11.5.18
 [11.5.17]: https://github.com/sebastianbergmann/phpunit/compare/11.5.16...11.5.17
 [11.5.16]: https://github.com/sebastianbergmann/phpunit/compare/11.5.15...11.5.16

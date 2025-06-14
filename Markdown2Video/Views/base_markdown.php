@@ -1,18 +1,18 @@
 <?php
 // --- Views/base_markdown.php ---
-$base_url = $base_url ?? ''; // Pasada por MarkdownController->create()
+
+$base_url = $base_url ?? '';
 $pageTitle = $pageTitle ?? 'Editor Markdown';
-// Token CSRF para la acción de generar PDF (si lo implementas)
-// En MarkdownController->create():
-// if (empty($_SESSION['csrf_token_generate_pdf'])) { $_SESSION['csrf_token_generate_pdf'] = bin2hex(random_bytes(32)); }
-// $csrf_token_generate_pdf = $_SESSION['csrf_token_generate_pdf'];
-$csrf_token_generate_pdf = $csrf_token_generate_pdf ?? ''; // Pásalo desde el controlador
+
+// Tokens pasados desde MarkdownController->create()
+$csrf_token_generate_pdf = $csrf_token_generate_pdf ?? '';
+$csrf_token_image_action = $csrf_token_image_action ?? ''; // ¡NUEVO! para el gestor de imágenes
 
 // Definir variables globales de JavaScript ANTES de incluir el script externo
 echo "<script>\n";
 echo "  window.BASE_APP_URL = " . json_encode($base_url) . ";\n";
-// Pasar el token CSRF a JavaScript si lo vas a usar en el fetch
 echo "  window.CSRF_TOKEN_PDF_GENERATE = " . json_encode($csrf_token_generate_pdf) . ";\n";
+echo "  window.CSRF_TOKEN_IMAGE_ACTION = " . json_encode($csrf_token_image_action) . ";\n"; // ¡NUEVO!
 echo "</script>\n";
 ?>
 <!DOCTYPE html>
@@ -24,8 +24,13 @@ echo "</script>\n";
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/theme/dracula.min.css">
+  <!-- ¡NUEVO! Se añade Font Awesome para los iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+  
   <link rel="stylesheet" href="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/public/css/header.css">
   <link rel="stylesheet" href="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/public/css/base_markdown.css">
+  <!-- ¡NUEVO! Enlace al nuevo archivo CSS para el modal -->
+  <link rel="stylesheet" href="<?php echo htmlspecialchars($base_url, ENT_QUOTES, 'UTF-8'); ?>/public/css/modal_and_gallery.css">
 </head>
 <body>
   <?php if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'header.php')) { include VIEWS_PATH . 'header.php'; } ?>
@@ -34,10 +39,15 @@ echo "</script>\n";
     <div class="editor-container">
       <div class="editor-header">
         <h2>Editor</h2>
-        <select id="mode-select" class="mode-selector">
-          <option value="markdown" selected>Markdown Estándar</option>
-          <option value="marp">Marp</option>
-        </select>
+        <!-- ¡NUEVO! Contenedor para alinear el botón y el selector -->
+        <div class="editor-controls">
+            <!-- ¡NUEVO! Botón para abrir el modal de imágenes -->
+            <button id="openImageModalBtn" class="icon-btn" title="Gestionar imágenes"><i class="fa-solid fa-image"></i></button>
+            <select id="mode-select" class="mode-selector">
+                <option value="markdown" selected>Markdown Estándar</option>
+                <option value="marp">Marp</option>
+            </select>
+        </div>
       </div>
       <div class="editor-body"><textarea id="editor" class="editor" placeholder="Escribe tu presentación aquí..."></textarea></div>
     </div>
@@ -46,12 +56,68 @@ echo "</script>\n";
       <div class="preview-body"><div id="ppt-preview" class="ppt-preview"><p>La vista previa se mostrará aquí...</p></div></div>
       <div class="button-container">
         <button class="generate-btn" data-action="generate-ppt">Generar PPT</button>
-        <button class="generate-btn" id="generatePdfBtnHtml">Generar PDF (desde Preview)</button> <!-- ID ESPECÍFICO -->
+        <button class="generate-btn" id="generatePdfBtnHtml">Generar PDF (desde Preview)</button>
         <button class="generate-btn" data-action="generate-mp4">Generar Video MP4</button>
         <button class="generate-btn" data-action="generate-html">Generar HTML</button>
       </div>
     </div>
   </div>
+
+  <!-- ¡NUEVO! HTML completo del Modal para gestionar imágenes (colocado antes de los scripts) -->
+  <div id="imageModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <button class="modal-close" id="closeImageModalBtn">×</button>
+      <h2>Gestor de Imágenes</h2>
+      
+      <div class="modal-body">
+        <div class="upload-section">
+          <h3>Subir Nueva Imagen</h3>
+          <form id="uploadImageForm">
+            <div class="form-group">
+              <label for="image_name">Nombre de Referencia:</label>
+              <input type="text" id="image_name" name="image_name" required pattern="[a-zA-Z0-9_-]+" placeholder="mi_foto_1">
+              <small>Solo letras, números, guiones y guión bajo.</small>
+            </div>
+            <div class="form-group">
+              <label for="image_file">Seleccionar archivo (max 5MB):</label>
+              <input type="file" id="image_file" name="image_file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" required>
+            </div>
+            <button type="submit" class="submit-btn">Subir Imagen</button>
+          </form>
+          <div id="uploadStatus" class="status-message"></div>
+        </div>
+
+        <div class="gallery-section">
+          <h3>Mis Imágenes</h3>
+          <div id="imageGallery" class="image-gallery-grid">
+            <!-- Las imágenes se cargarán aquí con JavaScript -->
+            <p>Cargando imágenes...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ... tu código existente ... -->
+  </div> <!-- Este es el cierre de <div id="imageModal" ...> -->
+
+  <!-- ¡NUEVO! Modal simple para copiar la sintaxis -->
+  <div id="copySyntaxModal" class="modal-overlay" style="display: none;">
+    <div class="copy-modal-content">
+      <h4>Copiar Sintaxis de Imagen</h4>
+      <p>Usa este código en tu editor para insertar la imagen:</p>
+      <input type="text" id="syntaxToCopy" readonly>
+      <div class="copy-modal-actions">
+        <button id="copySyntaxBtn" class="submit-btn">Copiar</button>
+        <button id="closeCopyModalBtn" class="cancel-btn">Cerrar</button>
+      </div>
+      <small id="copyStatusMessage" class="copy-status"></small>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/codemirror.min.js"></script>
+  <!-- ... el resto de tus scripts ... -->
+
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.4/mode/markdown/markdown.js"></script>

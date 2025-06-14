@@ -158,11 +158,15 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
     elseif ($actionName === 'download-page' && $_SERVER['REQUEST_METHOD'] === 'GET') { 
         $methodToCall = 'showPdfDownloadPage'; 
     } elseif ($actionName === 'force-download-pdf' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $methodToCall = 'forceDownloadPdf'; 
-    } elseif ($actionName === 'generate-marp-file' && $_SERVER['REQUEST_METHOD'] === 'POST') { // Nueva ruta para Marp
-        $methodToCall = 'generateMarpFile';
-    } elseif ($actionName === 'generate-video-from-marp' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $methodToCall = 'generateVideoFromMarp';
+        $methodToCall = 'forceDownloadPdf';
+    }
+    // --- ¡NUEVAS RUTAS DE IMÁGENES EN MARKDOWNCONTROLLER! ---
+    elseif ($actionName === 'upload-image' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $methodToCall = 'uploadImage';
+    } elseif ($actionName === 'get-user-images' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        $methodToCall = 'getUserImages';
+    } elseif ($actionName === 'delete-image' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $methodToCall = 'deleteImage';
     }
 }
 
@@ -175,7 +179,8 @@ if (class_exists($controllerClassName)) {
         $controllersRequiringPdo = [
             'Dales\\Markdown2video\\Controllers\\AuthController',
             'Dales\\Markdown2video\\Controllers\\DashboardController',
-            'Dales\\Markdown2video\\Controllers\\MarkdownController', // MarkdownController necesita PDO
+            'Dales\\Markdown2video\\Controllers\\MarkdownController',
+            'Dales\\Markdown2video\\Controllers\\ImageController',
         ];
 
         if (in_array($controllerClassName, $controllersRequiringPdo)) {
@@ -194,7 +199,11 @@ if (class_exists($controllerClassName)) {
             error_log("Método no encontrado: {$controllerClassName}->{$methodToCall} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
             http_response_code(404);
             if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
-                include VIEWS_PATH . 'error/404.php';
+                //include VIEWS_PATH . 'error/404.php';
+                echo "<h1>Error en el metodo Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
+            echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
+            echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
+            echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
             } else {
                 echo "404 - Método o Recurso no encontrado."; // Mensaje de fallback
             }
@@ -220,7 +229,11 @@ if (class_exists($controllerClassName)) {
     error_log("Clase de controlador no encontrada: {$controllerClassName} para URL '{$urlParam}' (Segments: " . json_encode($urlSegments) . ")");
     http_response_code(404);
     if (defined('VIEWS_PATH') && file_exists(VIEWS_PATH . 'error/404.php')) {
-        include VIEWS_PATH . 'error/404.php';
+        //include VIEWS_PATH . 'error/404.php';
+        echo "<h1>Error en la clase Controlador</h1><p><strong>Tipo:</strong> " . get_class($e) . "</p>";
+            echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
+            echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile(), ENT_QUOTES, 'UTF-8') . " (Línea: " . $e->getLine() . ")</p>";
+            echo "<h2>Traza:</h2><pre>" . htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8') . "</pre>";
     } else {
         echo "404 - Página no encontrada."; // Mensaje de fallback
     }
