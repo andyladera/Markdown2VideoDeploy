@@ -168,6 +168,12 @@ if ($controllerClassName === 'Dales\\Markdown2video\\Controllers\\AuthController
     } elseif ($actionName === 'delete-image' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $methodToCall = 'deleteImage';
     }
+    // --- ¡AÑADIR ESTA NUEVA RUTA AQUÍ! ---
+    elseif ($actionName === 'create-from-template' && isset($urlSegments[2]) && is_numeric($urlSegments[2])) {
+        $methodToCall = 'createFromTemplate';
+        // El ID de la plantilla (el número) se pasa como parámetro al método.
+        $params = [$urlSegments[2]];
+    }
 }
 
 

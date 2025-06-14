@@ -217,127 +217,93 @@ class MarkdownController {
 
     /**
      */
+    // Reemplaza el método de depuración por esta versión final y funcional
+    //funcion para el pdf con los diagramas
     public function generatePdfFromHtml(): void {
+    try {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['html_content'])) {
             http_response_code(400); header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Petición incorrecta o falta contenido HTML.']);
-            exit;
+            echo json_encode(['success' => false, 'error' => 'Petición incorrecta.']); exit;
         }
         if (empty($_POST['csrf_token_generate_pdf']) || !hash_equals($_SESSION['csrf_token_generate_pdf'] ?? '', $_POST['csrf_token_generate_pdf'])) {
             http_response_code(403); header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Token CSRF inválido o faltante.']);
-            exit;
+            echo json_encode(['success' => false, 'error' => 'Token CSRF inválido.']); exit;
         }
 
-        try {
-            $htmlContent = $_POST['html_content'];
-            $userId = $_SESSION['user_id'];
-            $pattern = '/<img src="([^"]*\/image\/serve\/([^"]+))"/i';
-            
-            $callback = function ($matches) use ($userId) {
-                $originalSrc = $matches[1];
-                $imageName = urldecode($matches[2]);
-                $imageDetails = $this->imageModel->getImageByNameAndUserId($imageName, $userId);
+        $htmlContent = $_POST['html_content'];
+        $userId = $_SESSION['user_id'];
+        
+        // --- LÓGICA DE BROWSERSHOT PARA PRODUCCIÓN ---
+        
+        // 1. Incrustamos nuestras imágenes locales en base64
+        $patternLocal = '/<img src="([^"]*\/image\/serve\/([^"]+))"/i';
+        $callbackLocal = function ($matches) use ($userId) {
+            $originalSrc = $matches[1];
+            $imageName = urldecode($matches[2]);
+            $imageDetails = $this->imageModel->getImageByNameAndUserId($imageName, $userId);
+            if ($imageDetails) {
+                $base64Image = base64_encode($imageDetails['image_data']);
+                $dataUri = 'data:' . $imageDetails['mime_type'] . ';base64,' . $base64Image;
+                return str_replace($originalSrc, $dataUri, $matches[0]);
+            }
+            return $matches[0];
+        };
+        $boundCallbackLocal = $callbackLocal->bindTo($this, $this);
+        $htmlWithLocalImages = preg_replace_callback($patternLocal, $boundCallbackLocal, $htmlContent);
 
-                if ($imageDetails) {
-                    $imageData = $imageDetails['image_data'];
-                    $mimeType = $imageDetails['mime_type'];
-                    $finalImageData = $imageData; 
+        // 2. Preparamos el HTML temporal para renderizar Mermaid
+        $mermaidScript = '<script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>';
+        $tempHtml = <<<HTML
+            <!DOCTYPE html><html><head><meta charset="UTF-8">$mermaidScript<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script></head>
+            <body><div id="content">$htmlWithLocalImages</div></body></html>
+        HTML;
 
-                    if (extension_loaded('gd')) {
-                        $sourceImage = @imagecreatefromstring($imageData);
+        // 3. Configuramos y ejecutamos Browsershot
+        $browsershot = Browsershot::html($tempHtml)
+            // --- ¡IMPORTANTE! Reemplaza estas rutas con las que obtuviste de tu servidor ---
+            ->setNodeBinary('/usr/bin/node') // Usa la salida de 'which node'
+            ->setNpmBinary('/usr/bin/npm');   // Usa la salida de 'which npm'
 
-                        if ($sourceImage !== false) {
-                            $maxImageWidthInPdf = 650; 
-                            $originalWidth = imagesx($sourceImage);
-                            
-                            if ($originalWidth > $maxImageWidthInPdf) {
-                                $originalHeight = imagesy($sourceImage);
-                                
-                                // --- CORRECCIÓN DE LA FÓRMULA ---
-                                $ratio = $originalHeight / $originalWidth;
-                                $newWidth = $maxImageWidthInPdf;
-                                $newHeight = $newWidth * $ratio;
+        // En producción, es más seguro darle una ruta temporal explícita
+        $browsershot->setTempDirectory(ROOT_PATH . '/public/temp_files/browsershot');
 
-                                // --- CORRECCIÓN CLAVE: Redondeamos los valores a enteros ---
-                                $newWidthInt = (int) round($newWidth);
-                                $newHeightInt = (int) round($newHeight);
-                                
-                                $resizedImage = imagecreatetruecolor($newWidthInt, $newHeightInt);
-                                
-                                if ($mimeType == 'image/png' || $mimeType == 'image/gif') {
-                                    imagealphablending($resizedImage, false);
-                                    imagesavealpha($resizedImage, true);
-                                    $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
-                                    imagefilledrectangle($resizedImage, 0, 0, $newWidthInt, $newHeightInt, $transparent);
-                                }
+        $renderedHtmlContent = $browsershot
+            ->waitUntilNetworkIdle()
+            ->bodyHtml();
+        
+        $clean_html = str_replace(['<pre style="word-wrap: break-word; white-space: pre-wrap;">', '</pre>'], '', $renderedHtmlContent);
+        
+        // --- FIN DE LA LÓGICA DE BROWSERSHOT ---
 
-                                imagecopyresampled($resizedImage, $sourceImage, 0, 0, 0, 0, $newWidthInt, $newHeightInt, $originalWidth, $originalHeight);
-                                
-                                ob_start();
-                                switch ($mimeType) {
-                                    case 'image/png': imagepng($resizedImage); break;
-                                    case 'image/gif': imagegif($resizedImage); break;
-                                    default: imagejpeg($resizedImage, null, 85); break;
-                                }
-                                $resizedImageData = ob_get_clean();
-                                
-                                if ($resizedImageData) {
-                                    $finalImageData = $resizedImageData;
-                                }
-                                
-                                imagedestroy($resizedImage);
-                            }
-                            imagedestroy($sourceImage);
-                        } else {
-                            error_log("Advertencia: No se pudo procesar la imagen '{$imageName}'.");
-                        }
-                    }
-                
-                    $base64Image = base64_encode($finalImageData);
-                    $dataUri = 'data:' . $mimeType . ';base64,' . $base64Image;
-                    return str_replace($originalSrc, $dataUri, $matches[0]);
-                }
-                return $matches[0];
-            };
 
-            $boundCallback = $callback->bindTo($this, $this);
-            $htmlContent = preg_replace_callback($pattern, $boundCallback, $htmlContent);
-            
-            $clean_html = $htmlContent; 
-            
-            $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
-            $userTempDir = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath . '/';
-            if (!is_dir($userTempDir)) { if (!mkdir($userTempDir, 0775, true) && !is_dir($userTempDir)) { exit; } }
-            $pdfFileName = 'preview_md_' . time() . '_' . bin2hex(random_bytes(3)) . '.pdf';
-            $outputPdfFile = $userTempDir . $pdfFileName;
-            
-            $options = new Options();
-            $options->set('isHtml5ParserEnabled', true); 
-            $options->set('isRemoteEnabled', true);
-            $options->set('defaultFont', 'DejaVu Sans');
-            $dompdf = new Dompdf($options);
-            $cssPdf = file_exists(ROOT_PATH . '/public/css/pdf_styles.css') ? file_get_contents(ROOT_PATH . '/public/css/pdf_styles.css') : '';
-            $fullHtml = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Documento</title>';
-            $fullHtml .= '<style>' . $cssPdf . '</style>';
-            $fullHtml .= '</head><body>' . $clean_html . '</body></html>';
-            $dompdf->loadHtml($fullHtml);
-            $dompdf->setPaper('A4', 'portrait');
-            $dompdf->render();
-            if (file_put_contents($outputPdfFile, $dompdf->output()) === false) { throw new \Exception("No se pudo guardar el archivo PDF generado."); }
-            $_SESSION['pdf_download_file'] = $pdfFileName;
-            $_SESSION['pdf_download_full_path'] = $outputPdfFile;
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'message' => 'PDF generado.','downloadPageUrl' => BASE_URL . '/markdown/download-page/' . urlencode($pdfFileName)]);
-            exit;
+        // El resto del código para crear el PDF con Dompdf no cambia
+        $userIdForPath = $_SESSION['user_id'] ?? 'guest_' . substr(session_id(), 0, 8);
+        $userTempDir = ROOT_PATH . '/public/temp_files/pdfs/' . $userIdForPath . '/';
+        if (!is_dir($userTempDir)) { mkdir($userTempDir, 0775, true); }
+        $pdfFileName = 'preview_md_' . time() . '.pdf';
+        $outputPdfFile = $userTempDir . $pdfFileName;
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true); $options->set('isRemoteEnabled', true); $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $cssPdf = file_exists(ROOT_PATH . '/public/css/pdf_styles.css') ? file_get_contents(ROOT_PATH . '/public/css/pdf_styles.css') : '';
+        $fullPdfHtml = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>' . $cssPdf . '</style></head><body>' . $clean_html . '</body></html>';
+        $dompdf->loadHtml($fullPdfHtml);
+        $dompdf->setPaper('A4', 'portrait'); $dompdf->render();
+        if (file_put_contents($outputPdfFile, $dompdf->output()) === false) { throw new \Exception("No se pudo guardar el PDF."); }
+        
+        $_SESSION['pdf_download_file'] = $pdfFileName;
+        $_SESSION['pdf_download_full_path'] = $outputPdfFile;
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'message' => 'PDF generado.', 'downloadPageUrl' => BASE_URL . '/markdown/download-page/' . urlencode($pdfFileName)]);
 
-        } catch (\Throwable $e) {
-            error_log("ERROR FATAL en generatePdfFromHtml: " . $e->getMessage() . " en " . $e->getFile() . " línea " . $e->getLine());
-            http_response_code(500); header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Error interno al generar el PDF.']);
-            exit;
-        }
+    } catch (\Throwable $e) {
+        error_log("ERROR en generatePdfFromHtml: " . $e->getMessage() . " en " . $e->getFile() . " línea " . $e->getLine());
+        error_log("Trace: " . $e->getTraceAsString());
+        http_response_code(500); header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error interno al generar el PDF. Revisa los logs del servidor.']);
     }
+    exit;
+}
 
     public function showPdfDownloadPage(string $filenameFromUrl): void {
         $filename = basename(urldecode($filenameFromUrl));
@@ -386,6 +352,61 @@ class MarkdownController {
         }
     }
 
-    private function showErrorPage(string $logMessage, string $userMessage = "Error."): void { /* ... */ }
+    private function showErrorPage(string $logMessage, string $userMessage = "Error."): void {
+        error_log($logMessage);
+        http_response_code(500);
+        // Aquí podrías incluir una vista de error genérica
+        echo "<h1>Error</h1><p>$userMessage</p>";
+    }
+
+    //NUEVA FUNCIONA PARA PLANTILLAS DE MARKDOWN
+    // Añade este método a src/Controllers/MarkdownController.php
+
+    // Pega este método DENTRO de la clase MarkdownController
+
+    public function createFromTemplate(int $templateId): void {
+        // Verificamos que el modelo de plantillas exista. 
+        // Como no lo inicializamos en el constructor de MarkdownController,
+        // lo creamos aquí temporalmente.
+        if (!$this->pdo) {
+            $this->showErrorPage("No hay conexión a la base de datos para cargar la plantilla.");
+            return;
+        }
+        $templateModel = new \Dales\Markdown2video\Models\TemplateModel($this->pdo);
+        
+        // Obtenemos el contenido de la plantilla desde la base de datos
+        $templateContent = $templateModel->getTemplateContentById($templateId);
+
+        if ($templateContent === null) {
+            // Si la plantilla no existe o está inactiva, redirigir al dashboard
+            header('Location: ' . BASE_URL . '/dashboard');
+            exit;
+        }
+
+        // Preparamos las variables necesarias para la vista del editor
+        $base_url = BASE_URL;
+        $pageTitle = "Editor - Desde Plantilla";
+        
+        // Generamos los tokens CSRF
+        if (empty($_SESSION['csrf_token_generate_pdf'])) { 
+            $_SESSION['csrf_token_generate_pdf'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token_generate_pdf = $_SESSION['csrf_token_generate_pdf'];
+        if (empty($_SESSION['csrf_token_image_action'])) { 
+            $_SESSION['csrf_token_image_action'] = bin2hex(random_bytes(32)); 
+        }
+        $csrf_token_image_action = $_SESSION['csrf_token_image_action'];
+
+        // Esta es la variable que pasará el contenido de la plantilla a la vista
+        $initialContent = $templateContent;
+
+        // Cargamos la vista del editor, pasándole todas las variables
+        $viewPath = VIEWS_PATH . 'base_markdown.php';
+        if (file_exists($viewPath)) {
+            require_once $viewPath;
+        } else {
+            $this->showErrorPage("La vista del editor Markdown no se ha encontrado.");
+        }
+    }
 
 }
