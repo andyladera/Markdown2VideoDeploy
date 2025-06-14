@@ -99,6 +99,20 @@ echo "</script>\n";
     </div>
   </div>
 
+  <!-- ¡NUEVO! Modal simple para copiar la sintaxis -->
+  <div id="copySyntaxModal" class="modal-overlay" style="display: none;">
+    <div class="copy-modal-content">
+      <h4>Copiar Sintaxis de Imagen</h4>
+      <p>Usa este código en tu editor para insertar la imagen:</p>
+      <input type="text" id="syntaxToCopy" readonly>
+      <div class="copy-modal-actions">
+        <button id="copySyntaxBtn" class="submit-btn">Copiar</button>
+        <button id="closeCopyModalBtn" class="cancel-btn">Cerrar</button>
+      </div>
+      <small id="copyStatusMessage" class="copy-status"></small>
+    </div>
+  </div>
+
   <!-- ¡NUEVO! Modal para expandir los diagramas de Mermaid -->
   <div id="mermaidModal" class="mermaid-modal-overlay" style="display: none;">
     <div class="mermaid-modal-content">
