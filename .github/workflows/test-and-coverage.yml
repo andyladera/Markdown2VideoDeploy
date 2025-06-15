@@ -27,7 +27,7 @@ jobs:
         run: mkdir -p docs/coverage
 
       - name: Ejecutar pruebas con cobertura
-        run: XDEBUG_MODE=coverage phpunit --coverage-html docs/coverage tests/ImageModelTest.php
+        run: XDEBUG_MODE=coverage phpunit --coverage-html docs/coverage tests
 
       - name: Subir reporte a GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
