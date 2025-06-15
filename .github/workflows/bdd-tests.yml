@@ -1,5 +1,4 @@
 name: BDD Tests and Report Publishing
-
 on:
   push:
     branches: [main]
@@ -8,7 +7,6 @@ on:
 jobs:
   test-and-publish:
     runs-on: ubuntu-latest
-
     steps:
       # Paso 1: Checkout del código principal
       - name: Checkout repository
@@ -19,36 +17,93 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
-          extensions: pdo, pdo_sqlite
-          coverage: none # Desactivado ya que no es necesario para Behat
+          extensions: pdo, pdo_sqlite, mbstring, xml, dom
+          coverage: none
 
-      # Paso 3: Instalar dependencias incluyendo el formateador HTML
+      # Paso 3: Cache de dependencias de Composer
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      # Paso 4: Instalar dependencias con verificación
       - name: Install dependencies
         working-directory: Markdown2Video
         run: |
-          composer install --prefer-dist --no-progress
-          composer require --dev behat/behat emuse/behat-html-formatter
+          composer install --prefer-dist --no-progress --no-interaction
+          composer require --dev emuse/behat-html-formatter --no-interaction
+          composer show | grep behat-html-formatter || echo "HTML formatter not found"
 
-      # Paso 4: Crear directorio para reportes
+      # Paso 5: Crear directorio para reportes
       - name: Create reports directory
         run: mkdir -p Markdown2Video/reports/{html,junit}
 
-      # Paso 5: Ejecutar pruebas BDD con configuración adecuada
-      - name: Run Behat tests
+      # Paso 6: Verificar configuración de Behat
+      - name: Verify Behat configuration
         working-directory: Markdown2Video
         run: |
+          vendor/bin/behat --help
+          vendor/bin/behat --config-reference
+
+      # Paso 7: Ejecutar pruebas BDD por separado
+      - name: Run Behat tests with multiple outputs
+        working-directory: Markdown2Video
+        run: |
+          # Ejecutar con formato pretty para consola
+          vendor/bin/behat --format=pretty
+
+          # Ejecutar con formato junit para XML
+          vendor/bin/behat --format=junit --out=reports/junit
+
+          # Ejecutar con formato HTML si está disponible
+          if vendor/bin/behat --help | grep -q "html"; then
+            vendor/bin/behat --format=html --out=reports/html
+          else
+            echo "HTML formatter not available, generating basic HTML report..."
             mkdir -p reports/html
-            chmod -R 777 reports
-            vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
-            
-      # Paso 6: Guardar reportes como artefacto
+            echo "<html><body><h1>BDD Test Results</h1><p>HTML formatter not available. Check junit reports for details.</p></body></html>" > reports/html/index.html
+          fi
+
+      # Paso 8: Generar reporte HTML alternativo si es necesario
+      - name: Generate HTML report if needed
+        working-directory: Markdown2Video
+        run: |
+          if [ ! -f "reports/html/index.html" ]; then
+            mkdir -p reports/html
+            cat > reports/html/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>BDD Test Results</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .header { background: #f4f4f4; padding: 20px; border-radius: 8px; }
+                  .content { margin-top: 20px; }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>BDD Test Results</h1>
+                  <p>Generated on: $(date)</p>
+              </div>
+              <div class="content">
+                  <p>For detailed test results, check the JUnit XML reports in the artifacts.</p>
+              </div>
+          </body>
+          </html>
+          EOF
+          fi
+
+      # Paso 9: Guardar reportes como artefacto
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v4
         with:
           name: bdd-reports
           path: Markdown2Video/reports
 
-      # Paso 7: Publicar en gh-pages (solo si es main)
+      # Paso 10: Publicar en gh-pages (solo si es main)
       - name: Publish BDD Reports to GitHub Pages
         if: github.ref == 'refs/heads/main'
         working-directory: Markdown2Video
@@ -57,7 +112,18 @@ jobs:
           git config --global user.email "actions@github.com"
 
           # Clonar gh-pages
-          git clone --depth=1 --branch=gh-pages https://github.com/$GITHUB_REPOSITORY.git ../gh-pages
+          git clone --depth=1 --branch=gh-pages https://github.com/$GITHUB_REPOSITORY.git ../gh-pages || {
+            echo "Creating gh-pages branch..."
+            git clone --depth=1 https://github.com/$GITHUB_REPOSITORY.git ../gh-pages
+            cd ../gh-pages
+            git checkout --orphan gh-pages
+            git rm -rf .
+            echo "# BDD Reports" > README.md
+            git add README.md
+            git commit -m "Initial gh-pages commit"
+            git push origin gh-pages
+            cd ../Markdown2Video
+          }
 
           # Copiar reportes
           mkdir -p ../gh-pages/bdd
