@@ -2,13 +2,13 @@ default:
   suites:
     default:
       paths:
-        - %paths.base%/features/
+        - "%paths.base%/features/" # ¡Nota las comillas simples!
       contexts:
         - FeatureContext
         - UserContext
   formatters:
     pretty: ~
     junit:
-      output_path: %paths.base%/reports/junit
+      output_path: "%paths.base%/reports/junit"
     html:
-      output_path: %paths.base%/reports/html
+      output_path: "%paths.base%/reports/html"
