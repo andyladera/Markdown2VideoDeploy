@@ -1,6 +1,6 @@
 {
   "source": {
-    "directories": ["Markdown2Video/src"]
+    "directories": ["Markdown2Video/src/Models"]
   },
   "logs": {
     "text": "infection.log",
