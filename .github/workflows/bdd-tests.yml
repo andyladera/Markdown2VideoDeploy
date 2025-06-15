@@ -2,15 +2,12 @@ name: BDD Tests and Report Publishing
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
 
 jobs:
   test-and-publish:
     runs-on: ubuntu-latest
-    container:
-      image: composer:2.6
 
     steps:
       # Paso 1: Checkout del código
