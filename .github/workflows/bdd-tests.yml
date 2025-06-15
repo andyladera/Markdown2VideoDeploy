@@ -1,4 +1,5 @@
 name: BDD Tests and Report Publishing
+
 on:
   push:
     branches: [main]
@@ -7,134 +8,53 @@ on:
 jobs:
   test-and-publish:
     runs-on: ubuntu-latest
+
     steps:
       # Paso 1: Checkout del código principal
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Paso 2: Configurar PHP con extensiones necesarias
+      # Paso 2: Configurar PHP
       - name: ⚙️ Configurar PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
-          extensions: pdo, pdo_sqlite, mbstring, xml, dom
-          coverage: none
+          coverage: xdebug
 
-      # Paso 3: Cache de dependencias de Composer
-      - name: Cache Composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.composer/cache
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      # Paso 4: Instalar dependencias con verificación
+      # Paso 3: Instalar dependencias
       - name: Install dependencies
         working-directory: Markdown2Video
         run: |
-          composer install --prefer-dist --no-progress --no-interaction
-          composer require --dev emuse/behat-html-formatter --no-interaction
-          composer show | grep behat-html-formatter || echo "HTML formatter not found"
+          composer install --prefer-dist --no-progress --no-suggest
+          composer require --dev behat/behat
 
-      # Paso 5: Crear directorio para reportes
-      - name: Create reports directory
-        run: mkdir -p Markdown2Video/reports/{html,junit}
-
-      # Paso 6: Verificar configuración de Behat
-      - name: Verify Behat configuration
-        working-directory: Markdown2Video
+      # Paso 4: Ejecutar pruebas BDD
+      - name: Run Behat tests
         run: |
-          vendor/bin/behat --help
-          vendor/bin/behat --config-reference
+          Markdown2Video/vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
 
-      # Paso 7: Ejecutar pruebas BDD por separado
-      - name: Run Behat tests with multiple outputs
-        working-directory: Markdown2Video
-        run: |
-          # Ejecutar con formato pretty para consola
-          vendor/bin/behat --format=pretty
-
-          # Ejecutar con formato junit para XML
-          vendor/bin/behat --format=junit --out=reports/junit
-
-          # Ejecutar con formato HTML si está disponible
-          if vendor/bin/behat --help | grep -q "html"; then
-            vendor/bin/behat --format=html --out=reports/html
-          else
-            echo "HTML formatter not available, generating basic HTML report..."
-            mkdir -p reports/html
-            echo "<html><body><h1>BDD Test Results</h1><p>HTML formatter not available. Check junit reports for details.</p></body></html>" > reports/html/index.html
-          fi
-
-      # Paso 8: Generar reporte HTML alternativo si es necesario
-      - name: Generate HTML report if needed
-        working-directory: Markdown2Video
-        run: |
-          if [ ! -f "reports/html/index.html" ]; then
-            mkdir -p reports/html
-            cat > reports/html/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>BDD Test Results</title>
-              <style>
-                  body { font-family: Arial, sans-serif; margin: 40px; }
-                  .header { background: #f4f4f4; padding: 20px; border-radius: 8px; }
-                  .content { margin-top: 20px; }
-              </style>
-          </head>
-          <body>
-              <div class="header">
-                  <h1>BDD Test Results</h1>
-                  <p>Generated on: $(date)</p>
-              </div>
-              <div class="content">
-                  <p>For detailed test results, check the JUnit XML reports in the artifacts.</p>
-              </div>
-          </body>
-          </html>
-          EOF
-          fi
-
-      # Paso 9: Guardar reportes como artefacto
+      # Paso 5: Guardar reportes como artefacto
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v4
         with:
           name: bdd-reports
-          path: Markdown2Video/reports
+          path: reports
 
-      # Paso 10: Publicar en gh-pages (solo si es main)
+      # Paso 6: Publicar en gh-pages (solo si es main o develop)
       - name: Publish BDD Reports to GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        working-directory: Markdown2Video
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git clone --depth 1 --branch gh-pages https://github.com/${{ github.repository }} gh-pages
+          mkdir -p gh-pages/bdd
+          cp -R reports/html/* gh-pages/bdd/
 
-          # Clonar gh-pages
-          git clone --depth=1 --branch=gh-pages https://github.com/$GITHUB_REPOSITORY.git ../gh-pages || {
-            echo "Creating gh-pages branch..."
-            git clone --depth=1 https://github.com/$GITHUB_REPOSITORY.git ../gh-pages
-            cd ../gh-pages
-            git checkout --orphan gh-pages
-            git rm -rf .
-            echo "# BDD Reports" > README.md
-            git add README.md
-            git commit -m "Initial gh-pages commit"
-            git push origin gh-pages
-            cd ../Markdown2Video
-          }
-
-          # Copiar reportes
-          mkdir -p ../gh-pages/bdd
-          cp -R reports/html/* ../gh-pages/bdd/
-
-          # Commit y push
-          cd ../gh-pages
+          cd gh-pages
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git add .
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update BDD reports - $(date +'%Y-%m-%d %H:%M:%S')"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY.git gh-pages
+            git commit -m "Update BDD reports - $(date)"
+            git push origin gh-pages
           fi
