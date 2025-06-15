@@ -38,7 +38,7 @@ jobs:
 
       # Paso 5: Guardar reportes como artefacto
       - name: Upload test reports artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bdd-reports
           path: reports
