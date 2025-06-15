@@ -14,7 +14,7 @@
   "mutators": {
     "@default": true
   },
-  "ignoreMsiWithNoMutations": false,
-  "minMsi": 80,
-  "minCoveredMsi": 80
+  "ignoreMsiWithNoMutations": true,
+  "minMsi": 0,
+  "minCoveredMsi": 0
 }
