@@ -18,12 +18,11 @@ jobs:
         uses: actions/checkout@v4
 
       # Paso 2: Configurar PHP
-      - name: Setup PHP
+      - name: ⚙️ Configurar PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
-          extensions: pdo, pdo_sqlite
-          coverage: none
+          php-version: "8.2"
+          coverage: xdebug
 
       # Paso 3: Instalar dependencias
       - name: Install dependencies
