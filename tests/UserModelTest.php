@@ -234,4 +234,77 @@ class UserModelTest extends TestCase
 
         $this->assertFalse($result);
     }
+
+    public function testMethodsVerifyPdoBindAndExecute()
+    {
+        // Configuración común
+        $userId = 1;
+        $stmt = $this->createMock(PDOStatement::class);
+
+        // 👇 Obliga a verificar bindParam + execute en getUserById
+        $stmt->expects($this->once())
+            ->method('bindParam')
+            ->with(':id', $userId, \PDO::PARAM_INT);
+
+        $stmt->expects($this->once())
+            ->method('execute');
+
+        $this->pdo->method('prepare')->willReturn($stmt);
+
+        // Act
+        $this->userModel->getUserById($userId);
+    }
+
+    public function testErrorHandlingInNonTestEnvironments()
+    {
+        // Simula entorno de producción
+        putenv('APP_ENV=production');
+
+        // Mock para forzar error
+        $this->pdo->method('prepare')
+            ->willThrowException(new \PDOException("Database error"));
+
+        // 👇 Verifica dos comportamientos:
+        // 1. Que se llame a error_log()
+        $this->expectOutputRegex('/Error en UserModel::getUserById/');
+
+        // 2. Que devuelva null (comportamiento esperado)
+        $result = $this->userModel->getUserById(1);
+        $this->assertNull($result);
+
+        // Restaura entorno
+        putenv('APP_ENV=testing');
+    }
+
+    public function testQueryStructureIsExact()
+    {
+        $expectedQuery = "SELECT id, username, email FROM users WHERE id = :id LIMIT 1";
+
+        $stmt = $this->createMock(PDOStatement::class);
+
+        // 👇 Verifica la query literal (fallará si se modifica)
+        $this->pdo->expects($this->once())
+            ->method('prepare')
+            ->with($expectedQuery)
+            ->willReturn($stmt);
+
+        $this->userModel->getUserById(1);
+    }
+
+    public function testCreateUserIncludesAllRequiredFields()
+    {
+        $stmt = $this->createMock(PDOStatement::class);
+
+        // 👇 Verifica los 3 campos obligatorios
+        $stmt->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(function ($params) {
+                return count($params) === 3 &&
+                    isset($params[':username'], $params[':email'], $params[':password_hash']);
+            }));
+
+        $this->pdo->method('prepare')->willReturn($stmt);
+
+        $this->userModel->createUser('test', 'test@test.com', 'password123');
+    }
 }
