@@ -1,0 +1,14 @@
+default:
+  suites:
+    default:
+      paths:
+        - %paths.base%/features/
+      contexts:
+        - FeatureContext
+        - UserContext
+  formatters:
+    pretty: ~
+    junit:
+      output_path: %paths.base%/reports/junit
+    html:
+      output_path: %paths.base%/reports/html
