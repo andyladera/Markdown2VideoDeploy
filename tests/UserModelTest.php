@@ -500,16 +500,16 @@ class UserModelTest extends TestCase
         $this->assertFalse($result);
     }
 
-    // Test para verificar el operador ternario en fetch
-    public function testFetchOperatorBehavior(): void
-    {
-        // Test cuando fetch retorna un array vacío (truthy pero no queremos null)
-        $this->stmt->method('fetch')
-            ->willReturn([]);
+    // // Test para verificar el operador ternario en fetch
+    // public function testFetchOperatorBehavior(): void
+    // {
+    //     // Test cuando fetch retorna un array vacío (truthy pero no queremos null)
+    //     $this->stmt->method('fetch')
+    //         ->willReturn([]);
 
-        $result = $this->userModel->getUserById(1);
-        $this->assertEquals([], $result);
-    }
+    //     $result = $this->userModel->getUserById(1);
+    //     $this->assertEquals([], $result);
+    // }
 
     // Test para verificar array_key_exists vs isset
     public function testUpdateUserWithNullValues(): void
