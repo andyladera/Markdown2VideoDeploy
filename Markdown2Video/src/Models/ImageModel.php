@@ -11,7 +11,7 @@ class ImageModel {
     public function __construct(?PDO $pdo = null) {
         $this->pdo = $pdo;
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-            header('Location: ' . BASE_URL . '/auth/login'); 
+            header('Location: /auth/login'); 
             exit();
         }
     }
