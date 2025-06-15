@@ -19,5 +19,3 @@ default:
       file_name: index
       print_args: true
       print_outp: true
-      print_loop: true
-      output_path: '%paths.base%/reports/html'  # ¡Esta línea es crucial!
