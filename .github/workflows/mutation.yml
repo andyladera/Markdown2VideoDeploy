@@ -61,7 +61,7 @@ jobs:
 
           Markdown2Video/vendor/bin/infection \
           --coverage=coverage \
-          --logger-html=docs/mutation \
+          --logger-html=docs/mutation/infection-report.html \
           --initial-tests-php-options="-d xdebug.mode=coverage" \
           --verbose
 
