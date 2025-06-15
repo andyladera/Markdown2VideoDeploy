@@ -47,18 +47,21 @@ jobs:
           # Renombrar para Infection (si es necesario)
           # cp coverage/junit.xml coverage/index.xml || echo "No se pudo copiar junit.xml"
           ls -la coverage/
-
+          
       - name: 🧬 Ejecutar Infection (pruebas de mutación)
         run: |
           # Verificar que coverage existe
           ls -la coverage/
+
+          # Crear carpeta
+          mkdir docs/mutation
         
           # Asegurar permisos de ejecución
           chmod +x Markdown2Video/vendor/bin/phpunit
 
           Markdown2Video/vendor/bin/infection \
           --coverage=coverage \
-          --logger-html=docs/mutation/infection-report.html \
+          --logger-html=docs/mutation \
           --initial-tests-php-options="-d xdebug.mode=coverage" \
           --verbose
 
@@ -66,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report
-          path: mutation
+          path: docs/mutation
 
   deploy-ghpages:
     needs: infection
