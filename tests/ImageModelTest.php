@@ -9,20 +9,28 @@ use Dales\Markdown2video\Models\ImageModel;
 class ImageModelTest extends TestCase
 {
     private $pdo;
-    private $imageModel;
+    private $stmt;
+    private ImageModel $imageModel;
     private $userId = 1;
     private $imageName = 'test_image.jpg';
     private $originalFilename = 'original_test.jpg';
     private $imageData = 'binaryimagedata';
     private $mimeType = 'image/jpeg';
+    private $baseUrl = 'http://localhost/';
 
     protected function setUp(): void
     {
-        // Mock PDO y PDOStatement
-        $this->pdo = $this->createMock(PDO::class);
-        $this->imageModel = new ImageModel($this->pdo);
+        // Mock PDOStatement
+        $this->stmt = $this->createMock(PDOStatement::class);
 
-        // Mock de sesión para evitar redirección en constructor
+        // Mock PDO
+        $this->pdo = $this->createMock(PDO::class);
+        $this->pdo->method('prepare')->willReturn($this->stmt);
+
+        // Instancia de ImageModel con PDO simulado y URL base
+        $this->imageModel = new ImageModel($this->pdo, $this->baseUrl);
+
+        // Mock de sesión
         $_SESSION['logged_in'] = true;
     }
 
@@ -31,26 +39,21 @@ class ImageModelTest extends TestCase
         unset($_SESSION['logged_in']);
     }
 
-    public function testConstructorRedirectsWhenNotLoggedIn()
+    public function testConstructorRedirectsWhenNotLoggedIn(): void
     {
         unset($_SESSION['logged_in']);
-        
-        $this->expectOutputRegex('/Location:/');
-        new ImageModel();
+
+        $this->expectOutputRegex('/Location: ' . preg_quote($this->baseUrl, '/') . 'auth\/login/');
+        new ImageModel(null, $this->baseUrl);
     }
 
-    public function testSaveImageSuccessfully()
+    public function testSaveImageSuccessfully(): void
     {
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->expects($this->exactly(5))
-             ->method('bindParam');
-        $stmt->expects($this->once())
-             ->method('execute')
-             ->willReturn(true);
-
-        $this->pdo->expects($this->once())
-                  ->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->expects($this->exactly(5))
+            ->method('bindParam');
+        $this->stmt->expects($this->once())
+            ->method('execute')
+            ->willReturn(true);
 
         $result = $this->imageModel->saveImage(
             $this->userId,
@@ -63,16 +66,12 @@ class ImageModelTest extends TestCase
         $this->assertTrue($result);
     }
 
-    public function testSaveImageFailsWithDuplicateEntry()
+    public function testSaveImageFailsWithDuplicateEntry(): void
     {
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->method('execute')
-             ->will($this->throwException(
-                 new PDOException("Duplicate entry", '23000')
-             ));
-
-        $this->pdo->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->method('execute')
+            ->will($this->throwException(
+                new PDOException("Duplicate entry", '23000')
+            ));
 
         $result = $this->imageModel->saveImage(
             $this->userId,
@@ -85,16 +84,12 @@ class ImageModelTest extends TestCase
         $this->assertFalse($result);
     }
 
-    public function testSaveImageFailsWithOtherPdoException()
+    public function testSaveImageFailsWithOtherPdoException(): void
     {
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->method('execute')
-             ->will($this->throwException(
-                 new PDOException("General error", 'HY000')
-             ));
-
-        $this->pdo->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->method('execute')
+            ->will($this->throwException(
+                new PDOException("General error", 'HY000')
+            ));
 
         $result = $this->imageModel->saveImage(
             $this->userId,
@@ -107,7 +102,7 @@ class ImageModelTest extends TestCase
         $this->assertFalse($result);
     }
 
-    public function testGetImagesByUserId()
+    public function testGetImagesByUserId(): void
     {
         $expectedResult = [
             [
@@ -118,106 +113,83 @@ class ImageModelTest extends TestCase
             ]
         ];
 
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->expects($this->once())
-             ->method('execute')
-             ->with(['user_id' => $this->userId]);
-        $stmt->expects($this->once())
-             ->method('fetchAll')
-             ->willReturn($expectedResult);
-
-        $this->pdo->expects($this->once())
-                  ->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->expects($this->once())
+            ->method('execute')
+            ->with(['user_id' => $this->userId]);
+        $this->stmt->expects($this->once())
+            ->method('fetchAll')
+            ->willReturn($expectedResult);
 
         $result = $this->imageModel->getImagesByUserId($this->userId);
 
         $this->assertEquals($expectedResult, $result);
     }
 
-    public function testGetImageByNameAndUserIdFound()
+    public function testGetImageByNameAndUserIdFound(): void
     {
         $expectedResult = [
             'image_data' => $this->imageData,
             'mime_type' => $this->mimeType
         ];
 
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->expects($this->once())
-             ->method('execute')
-             ->with([
-                 'image_name' => $this->imageName,
-                 'user_id' => $this->userId
-             ]);
-        $stmt->expects($this->once())
-             ->method('fetch')
-             ->willReturn($expectedResult);
-
-        $this->pdo->expects($this->once())
-                  ->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->expects($this->once())
+            ->method('execute')
+            ->with([
+                'image_name' => $this->imageName,
+                'user_id' => $this->userId
+            ]);
+        $this->stmt->expects($this->once())
+            ->method('fetch')
+            ->willReturn($expectedResult);
 
         $result = $this->imageModel->getImageByNameAndUserId($this->imageName, $this->userId);
 
         $this->assertEquals($expectedResult, $result);
     }
 
-    public function testGetImageByNameAndUserIdNotFound()
+    public function testGetImageByNameAndUserIdNotFound(): void
     {
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->method('fetch')
-             ->willReturn(false);
-
-        $this->pdo->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->method('fetch')
+            ->willReturn(false);
 
         $result = $this->imageModel->getImageByNameAndUserId('nonexistent.jpg', $this->userId);
 
         $this->assertNull($result);
     }
 
-    public function testDeleteImageByIdAndUserIdSuccess()
+    public function testDeleteImageByIdAndUserIdSuccess(): void
     {
         $idImage = 1;
 
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->expects($this->exactly(2))
-             ->method('bindParam');
-        $stmt->expects($this->once())
-             ->method('execute');
-        $stmt->expects($this->once())
-             ->method('rowCount')
-             ->willReturn(1);
-
-        $this->pdo->expects($this->once())
-                  ->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->expects($this->exactly(2))
+            ->method('bindParam');
+        $this->stmt->expects($this->once())
+            ->method('execute');
+        $this->stmt->expects($this->once())
+            ->method('rowCount')
+            ->willReturn(1);
 
         $result = $this->imageModel->deleteImageByIdAndUserId($idImage, $this->userId);
 
         $this->assertTrue($result);
     }
 
-    public function testDeleteImageByIdAndUserIdFailure()
+    public function testDeleteImageByIdAndUserIdFailure(): void
     {
-        $idImage = 999; // Non-existent ID
+        $idImage = 999;
 
-        $stmt = $this->createMock(PDOStatement::class);
-        $stmt->method('rowCount')
-             ->willReturn(0);
-
-        $this->pdo->method('prepare')
-                  ->willReturn($stmt);
+        $this->stmt->method('rowCount')
+            ->willReturn(0);
 
         $result = $this->imageModel->deleteImageByIdAndUserId($idImage, $this->userId);
 
         $this->assertFalse($result);
     }
 
-    public function testSessionCheckInConstructor()
+    public function testSessionCheckInConstructor(): void
     {
         $_SESSION['logged_in'] = true;
-        $model = new ImageModel();
+        $model = new ImageModel(null, $this->baseUrl);
         $this->assertInstanceOf(ImageModel::class, $model);
     }
 }
