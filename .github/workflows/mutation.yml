@@ -81,13 +81,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: mutation-report
-          path: reports/mutation
+          path: docs/mutation
 
       - name: 🚀 Publicar en GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: reports
-          destination_dir: reports
+          publish_dir: docs/mutation
+          destination_dir: mutation
           keep_files: true
