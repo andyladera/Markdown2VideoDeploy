@@ -5,24 +5,18 @@ namespace Dales\Markdown2video\Models;
 use PDO;
 use PDOException;
 
-class ImageModel
-{
+class ImageModel {
     private PDO $pdo;
-    private string $baseUrl;
 
-    public function __construct(?PDO $pdo = null, string $baseUrl = '/')
-    {
+    public function __construct(?PDO $pdo = null) {
         $this->pdo = $pdo;
-        $this->baseUrl = rtrim($baseUrl, '/') . '/';
-
         if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-            header('Location: ' . $this->baseUrl . 'auth/login');
+            header('Location: ' . BASE_URL . '/auth/login'); 
             exit();
         }
     }
 
-    public function saveImage(int $userId, string $imageName, string $originalFilename, string $imageData, string $mimeType): bool
-    {
+    public function saveImage(int $userId, string $imageName, string $originalFilename, string $imageData, string $mimeType): bool {
         // Sin cambios en esta función
         $sql = "INSERT INTO user_images (user_id, image_name, original_filename, image_data, mime_type) VALUES (:user_id, :image_name, :original_filename, :image_data, :mime_type)";
         try {
@@ -43,8 +37,7 @@ class ImageModel
         }
     }
 
-    public function getImagesByUserId(int $userId): array
-    {
+    public function getImagesByUserId(int $userId): array {
         // --- CORRECCIÓN ---
         // Se cambia "SELECT id," por "SELECT id_image," para que coincida con la nueva columna.
         $sql = "SELECT id_image, image_name, original_filename, uploaded_at FROM user_images WHERE user_id = :user_id ORDER BY uploaded_at DESC";
@@ -52,9 +45,8 @@ class ImageModel
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-    public function getImageByNameAndUserId(string $imageName, int $userId): ?array
-    {
+    
+    public function getImageByNameAndUserId(string $imageName, int $userId): ?array {
         // Sin cambios en esta función
         $sql = "SELECT image_data, mime_type FROM user_images WHERE image_name = :image_name AND user_id = :user_id";
         $stmt = $this->pdo->prepare($sql);
@@ -63,8 +55,7 @@ class ImageModel
         return $result ?: null;
     }
 
-    public function deleteImageByIdAndUserId(int $id_image, int $userId): bool
-    {
+    public function deleteImageByIdAndUserId(int $id_image, int $userId): bool {
         // --- CORRECCIÓN ---
         // Se cambia "WHERE id = :id" por "WHERE id_image = :id_image".
         // También se cambia el nombre del parámetro para mayor claridad.
