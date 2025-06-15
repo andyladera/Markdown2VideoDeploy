@@ -42,7 +42,7 @@ jobs:
           --coverage-xml=coverage/clover.xml \
           --coverage-html=coverage/html \
           --log-junit=coverage/junit.xml \
-          tests/TemplateModelTest.php
+          tests
 
           # Renombrar para Infection (si es necesario)
           # cp coverage/junit.xml coverage/index.xml || echo "No se pudo copiar junit.xml"
