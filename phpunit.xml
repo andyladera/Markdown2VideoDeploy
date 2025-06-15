@@ -17,7 +17,7 @@
 
   <source>
     <include>
-      <directory suffix=".php">Markdown2Video/src/Models</directory>
+      <directory suffix=".php">Markdown2Video/src</directory>
     </include>
   </source>
 
