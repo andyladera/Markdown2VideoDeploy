@@ -2,7 +2,7 @@ name: BDD Tests and Report Publishing
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -14,47 +14,61 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Paso 2: Configurar PHP
+      # Paso 2: Configurar PHP con extensiones necesarias
       - name: ⚙️ Configurar PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
-          coverage: xdebug
+          extensions: pdo, pdo_sqlite
+          coverage: none # Desactivado ya que no es necesario para Behat
 
-      # Paso 3: Instalar dependencias
+      # Paso 3: Instalar dependencias incluyendo el formateador HTML
       - name: Install dependencies
         working-directory: Markdown2Video
         run: |
-          composer install --prefer-dist --no-progress --no-suggest
-          composer require --dev behat/behat
+          composer install --prefer-dist --no-progress
+          composer require --dev behat/behat emuse/behat-html-formatter
 
-      # Paso 4: Ejecutar pruebas BDD
+      # Paso 4: Crear directorio para reportes
+      - name: Create reports directory
+        run: mkdir -p Markdown2Video/reports/{html,junit}
+
+      # Paso 5: Ejecutar pruebas BDD con configuración adecuada
       - name: Run Behat tests
+        working-directory: Markdown2Video
         run: |
-          Markdown2Video/vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
+          vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
+        env:
+          BEHAT_PARAMS: '{"extensions": {"emuse\\BehatHTMLFormatter\\BehatHTMLFormatterExtension": {"name": "html", "renderer": "Twig,Behat2", "file_name": "index"}}}'
 
-      # Paso 5: Guardar reportes como artefacto
+      # Paso 6: Guardar reportes como artefacto
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v4
         with:
           name: bdd-reports
-          path: reports
+          path: Markdown2Video/reports
 
-      # Paso 6: Publicar en gh-pages (solo si es main o develop)
+      # Paso 7: Publicar en gh-pages (solo si es main)
       - name: Publish BDD Reports to GitHub Pages
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/main'
+        working-directory: Markdown2Video
         run: |
-          git clone --depth 1 --branch gh-pages https://github.com/${{ github.repository }} gh-pages
-          mkdir -p gh-pages/bdd
-          cp -R reports/html/* gh-pages/bdd/
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
 
-          cd gh-pages
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          # Clonar gh-pages
+          git clone --depth=1 --branch=gh-pages https://github.com/$GITHUB_REPOSITORY.git ../gh-pages
+
+          # Copiar reportes
+          mkdir -p ../gh-pages/bdd
+          cp -R reports/html/* ../gh-pages/bdd/
+
+          # Commit y push
+          cd ../gh-pages
           git add .
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update BDD reports - $(date)"
-            git push origin gh-pages
+            git commit -m "Update BDD reports - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY.git gh-pages
           fi
