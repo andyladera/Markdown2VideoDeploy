@@ -40,21 +40,8 @@ jobs:
           name: bdd-reports
           path: reports
 
-      # Paso 6: Publicar en gh-pages (solo si es main o develop)
-      - name: Publish BDD Reports to GitHub Pages
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-        run: |
-          git clone --depth 1 --branch gh-pages https://github.com/${{ github.repository }} gh-pages
-          mkdir -p gh-pages/bdd
-          cp -R reports/html/* gh-pages/bdd/
-
-          cd gh-pages
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add .
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update BDD reports - $(date)"
-            git push origin gh-pages
-          fi
+      - name: Subir reporte a GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: reports
