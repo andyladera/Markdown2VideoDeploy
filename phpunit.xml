@@ -11,8 +11,7 @@
 
   <testsuites>
     <testsuite name="Models Test Suite">
-      <file>tests/ImageModelTest.php</file>
-      <file>tests/UserModelTest.php</file>
+      <file>tests</file>
     </testsuite>
   </testsuites>
 
