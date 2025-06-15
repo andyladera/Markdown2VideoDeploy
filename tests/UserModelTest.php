@@ -160,22 +160,19 @@ class UserModelTest extends TestCase
 
     public function testCreateUserSuccess(): void
     {
-        // Cambio principal: El código real usa execute($params), no bindParam individual
-        $expectedParams = [
-            ':username' => 'newuser',
-            ':email' => 'new@example.com',
-            ':password_hash' => $this->anything() // El hash puede variar
-        ];
+        $bindCalls = 0;
+        $this->stmt->expects($this->exactly(3))
+            ->method('bindParam')
+            ->willReturnCallback(function ($param, $value) use (&$bindCalls) {
+                $bindCalls++;
+                if ($bindCalls === 1) $this->assertEquals(':username', $param);
+                if ($bindCalls === 2) $this->assertEquals(':email', $param);
+                if ($bindCalls === 3) $this->assertEquals(':password_hash', $param);
+                return true;
+            });
 
         $this->stmt->expects($this->once())
             ->method('execute')
-            ->with($this->callback(function ($params) {
-                return isset($params[':username']) &&
-                    isset($params[':email']) &&
-                    isset($params[':password_hash']) &&
-                    $params[':username'] === 'newuser' &&
-                    $params[':email'] === 'new@example.com';
-            }))
             ->willReturn(true);
 
         $this->pdo->method('lastInsertId')
@@ -187,15 +184,24 @@ class UserModelTest extends TestCase
 
     public function testUpdateUserReturnsTrueOnSuccess(): void
     {
-        // Cambio principal: El código real usa execute($params), no bindParam individual
-        $expectedParams = [
-            ':username' => 'NuevoNombre',
-            ':id' => 1
-        ];
+        $bindCalls = 0;
+        $this->stmt->expects($this->exactly(2))
+            ->method('bindParam')
+            ->willReturnCallback(function ($param, $value) use (&$bindCalls) {
+                $bindCalls++;
+                if ($bindCalls === 1) {
+                    $this->assertEquals(':username', $param);
+                    $this->assertEquals('NuevoNombre', $value);
+                }
+                if ($bindCalls === 2) {
+                    $this->assertEquals(':id', $param);
+                    $this->assertEquals(1, $value);
+                }
+                return true;
+            });
 
         $this->stmt->expects($this->once())
             ->method('execute')
-            ->with($expectedParams)
             ->willReturn(true);
         $this->stmt->method('rowCount')
             ->willReturn(1);
@@ -207,20 +213,20 @@ class UserModelTest extends TestCase
 
     public function testUpdateUserWithMultipleFields(): void
     {
-        $expectedParams = [
-            ':username' => 'newuser',
-            ':email' => 'new@example.com',
-            ':id' => 1
-        ];
+        $bindCalls = 0;
+        $this->stmt->expects($this->exactly(3))
+            ->method('bindParam')
+            ->willReturnCallback(function ($param, $value) use (&$bindCalls) {
+                $bindCalls++;
+                if ($bindCalls === 1) $this->assertEquals(':username', $param);
+                if ($bindCalls === 2) $this->assertEquals(':email', $param);
+                if ($bindCalls === 3) $this->assertEquals(':id', $param);
+                return true;
+            });
 
         $this->stmt->expects($this->once())
             ->method('execute')
-            ->with($expectedParams)
             ->willReturn(true);
-
-        // Agregamos el mock para rowCount que faltaba
-        $this->stmt->method('rowCount')
-            ->willReturn(1);
 
         $data = ['username' => 'newuser', 'email' => 'new@example.com'];
         $result = $this->userModel->updateUser(1, $data);
