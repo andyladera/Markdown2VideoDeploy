@@ -1,0 +1,66 @@
+name: BDD Tests and Report Publishing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    container:
+      image: composer:2.6
+
+    steps:
+      # Paso 1: Checkout del código
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Paso 2: Configurar PHP
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_sqlite
+          coverage: none
+
+      # Paso 3: Instalar dependencias
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-suggest
+          composer require --dev behat/behat
+
+      # Paso 4: Ejecutar pruebas BDD
+      - name: Run Behat tests
+        run: |
+          vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
+
+      # Paso 5: Guardar reportes como artefacto
+      - name: Upload test reports artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: bdd-reports
+          path: reports
+
+      # Paso 6: Configurar para deploy a gh-pages
+      - name: Setup GitHub Pages
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      # Paso 7: Publicar reportes en gh-pages
+      - name: Publish BDD Reports
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          mkdir -p gh-pages/bdd
+          cp -R reports/html/* gh-pages/bdd/
+          
+          cd gh-pages
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Update BDD reports - $(date)"
+          git push origin gh-pages
