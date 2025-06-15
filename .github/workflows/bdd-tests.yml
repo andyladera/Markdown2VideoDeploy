@@ -37,10 +37,10 @@ jobs:
       - name: Run Behat tests
         working-directory: Markdown2Video
         run: |
-          vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
-        env:
-          BEHAT_PARAMS: '{"extensions": {"emuse\\BehatHTMLFormatter\\BehatHTMLFormatterExtension": {"name": "html", "renderer": "Twig,Behat2", "file_name": "index"}}}'
-
+            mkdir -p reports/html
+            chmod -R 777 reports
+            vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
+            
       # Paso 6: Guardar reportes como artefacto
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v4
