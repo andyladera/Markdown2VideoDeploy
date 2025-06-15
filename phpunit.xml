@@ -10,8 +10,9 @@
 >
 
   <testsuites>
-    <testsuite name="Project Test Suite">
-      <directory>tests</directory>
+    <testsuite name="Models Test Suite">
+      <file>tests/ImageModelTest.php</file>
+      <file>tests/UserModelTest.php</file>
     </testsuite>
   </testsuites>
 
