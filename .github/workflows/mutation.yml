@@ -58,7 +58,7 @@ jobs:
 
           Markdown2Video/vendor/bin/infection \
           --coverage=coverage \
-          --logger-html=infection-report \
+          --logger-html=docs/mutation/infection-report.html \
           --initial-tests-php-options="-d xdebug.mode=coverage" \
           --verbose
 
@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report
-          path: infection-report
+          path: mutation
 
   deploy-ghpages:
     needs: infection
