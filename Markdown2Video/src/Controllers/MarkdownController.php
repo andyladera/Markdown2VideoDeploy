@@ -5,6 +5,7 @@ use PDO;
 use Dompdf\Dompdf;     
 use Dompdf\Options;  
 use Dales\Markdown2video\Models\ImageModel; 
+use Spatie\Browsershot\Browsershot; 
 
 class MarkdownController {
     private ?PDO $pdo;
@@ -160,22 +161,27 @@ class MarkdownController {
 
 
     public function deleteImage(): void {
-        // Establecemos la cabecera JSON al principio.
         header('Content-Type: application/json');
 
         try {
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Petición inválida.']);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); // Method Not Allowed
+                echo json_encode(['success' => false, 'error' => 'Método no permitido.']);
                 exit;
             }
 
-            $data = json_decode(file_get_contents('php://input'), true);
+            if (!isset($_SESSION['user_id'])) {
+                http_response_code(401); // Unauthorized
+                echo json_encode(['success' => false, 'error' => 'No autorizado.']);
+                exit;
+            }
 
-            // Si el JSON está mal formado o vacío
-            if (json_last_error() !== JSON_ERROR_NONE || !$data) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Datos de entrada inválidos.']);
+            $json_data = file_get_contents('php://input');
+            $data = json_decode($json_data, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE || !isset($data['id_image']) || !is_numeric($data['id_image'])) {
+                http_response_code(400); // Bad Request
+                echo json_encode(['success' => false, 'error' => 'Datos JSON inválidos o falta el ID de la imagen.']);
                 exit;
             }
             
@@ -184,39 +190,26 @@ class MarkdownController {
                 echo json_encode(['success' => false, 'error' => 'Error de seguridad (CSRF).']);
                 exit;
             }
-            
-            if (empty($data['id_image']) || !is_numeric($data['id_image'])) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'Falta el ID de la imagen o es inválido.']);
-                exit;
-            }
 
-            // Si todas las validaciones pasan, intentamos borrar.
             $wasDeleted = $this->imageModel->deleteImageByIdAndUserId((int)$data['id_image'], $_SESSION['user_id']);
 
             if ($wasDeleted) {
-                // Éxito real
                 http_response_code(200);
                 echo json_encode(['success' => true, 'message' => 'Imagen eliminada correctamente.']);
             } else {
-                // La consulta se ejecutó pero no borró nada (ID no encontrado o no pertenece al usuario)
                 http_response_code(404);
                 echo json_encode(['success' => false, 'error' => 'No se pudo eliminar la imagen: no se encontró o no te pertenece.']);
             }
 
         } catch (\Throwable $e) {
-            // Capturamos cualquier otro error inesperado
             error_log("Error en deleteImage: " . $e->getMessage());
             http_response_code(500);
             echo json_encode(['success' => false, 'error' => 'Ocurrió un error inesperado en el servidor.']);
         }
         
-        // El exit ya no es estrictamente necesario aquí si no hay más código, pero es buena práctica.
         exit;
     }
 
-    /**
-     */
     public function generatePdfFromHtml(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['html_content'])) {
             http_response_code(400); header('Content-Type: application/json');
@@ -254,12 +247,10 @@ class MarkdownController {
                             if ($originalWidth > $maxImageWidthInPdf) {
                                 $originalHeight = imagesy($sourceImage);
                                 
-                                // --- CORRECCIÓN DE LA FÓRMULA ---
                                 $ratio = $originalHeight / $originalWidth;
                                 $newWidth = $maxImageWidthInPdf;
                                 $newHeight = $newWidth * $ratio;
 
-                                // --- CORRECCIÓN CLAVE: Redondeamos los valores a enteros ---
                                 $newWidthInt = (int) round($newWidth);
                                 $newHeightInt = (int) round($newHeight);
                                 
@@ -387,122 +378,94 @@ class MarkdownController {
     }
 
     /**
-     * Genera un archivo PDF a partir de contenido Markdown usando Marp CLI.
+     * Genera un archivo PDF a partir de contenido Markdown usando Spatie/Browsershot.
      * Ruta: POST /markdown/generate-marp-pdf
      */
-    public function generateMarpPdf(): void {
-        // 1. Validar la petición y obtener datos
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            http_response_code(405); // Method Not Allowed
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Método no permitido.']);
-            exit;
-        }
+     public function generateMarpPdf(): void {
+        // 1. Obtener y validar el contenido Markdown
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
 
-        $json_data = file_get_contents('php://input');
-        $data = json_decode($json_data, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || !isset($data['markdown'])) {
-            http_response_code(400); // Bad Request
+        if (!isset($data['markdown'])) {
+            http_response_code(400);
             header('Content-Type: application/json');
-            echo json_encode(['error' => 'Datos JSON inválidos o falta el contenido markdown.']);
+            echo json_encode(['error' => 'No se proporcionó contenido markdown.']);
             exit;
         }
 
         $markdownContent = $data['markdown'];
 
-        // 2. Crear archivos temporales de forma segura
-        $tempDir = sys_get_temp_dir();
-        $uniqueId = bin2hex(random_bytes(8)); // ID más seguro y corto
-        $markdownFilePath = $tempDir . DIRECTORY_SEPARATOR . 'marp_' . $uniqueId . '.md';
-        $pdfFilePath = $tempDir . DIRECTORY_SEPARATOR . 'marp_' . $uniqueId . '.pdf';
+        // 2. Construir el HTML para que Marp lo renderice en el navegador headless
+        $html = <<<'HTML'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Marp Presentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@marp-team/marp-core@latest/lib/marp.browser.js"></script>
+</head>
+<body>
+  <script type="text/markdown">
+    {$markdownContent}
+  </script>
+</body>
+</html>
+HTML;
+        $html = str_replace('{$markdownContent}', $markdownContent, $html);
 
-        if (file_put_contents($markdownFilePath, $markdownContent) === false) {
-            http_response_code(500);
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'No se pudo escribir el archivo markdown temporal.']);
-            exit;
-        }
+        try {
+            // 3. Usar Browsershot para generar el PDF
+            $pdfOutput = Browsershot::html($html)
+                ->waitUntilNetworkIdle() // Espera a que Marp JS termine de renderizar
+                ->pdf();
 
-        // 3. Construir y ejecutar el comando Marp CLI
-        // Usamos npx para asegurar que se use la versión local de marp-cli si está disponible
-        // --allow-local-files es crucial para que Marp pueda acceder a imágenes locales si las hubiera
-        $command = sprintf(
-            'npx @marp-team/marp-cli@latest %s -o %s --pdf --allow-local-files',
-            escapeshellarg($markdownFilePath),
-            escapeshellarg($pdfFilePath)
-        );
-
-        // Redirigir stderr a stdout para capturar cualquier salida de error
-        $command .= ' 2>&1';
-        
-        $output = shell_exec($command);
-
-        // 4. Verificar el resultado y enviar el archivo
-        if (file_exists($pdfFilePath) && filesize($pdfFilePath) > 0) {
+            // 4. Enviar el PDF generado al cliente
             header('Content-Type: application/pdf');
             header('Content-Disposition: attachment; filename="presentacion.pdf"');
-            header('Content-Length: ' . filesize($pdfFilePath));
+            header('Content-Length: ' . strlen($pdfOutput));
             header('Cache-Control: no-cache, no-store, must-revalidate');
             header('Pragma: no-cache');
             header('Expires: 0');
-            readfile($pdfFilePath);
-        } else {
+            
+            echo $pdfOutput;
+
+        } catch (\Exception $e) {
+            // Capturar errores de Browsershot (ej. Chrome no encontrado)
+            error_log('Error de Browsershot: ' . $e->getMessage());
             http_response_code(500);
             header('Content-Type: application/json');
-            // Devolver el output del comando para ayudar a depurar
             echo json_encode([
-                'error' => 'Marp CLI falló al generar el PDF.',
-                'details' => $output
+                'error' => 'Falló la generación del PDF con Browsershot.',
+                'details' => $e->getMessage()
             ]);
         }
-
-        // 5. Limpieza de archivos temporales
-        if (file_exists($markdownFilePath)) {
-            unlink($markdownFilePath);
-        }
-        if (file_exists($pdfFilePath)) {
-            unlink($pdfFilePath);
-        }
-        exit; // Terminar el script para no enviar más salida
+        
+        exit;
     }
 
     private function showErrorPage(string $logMessage, string $userMessage = "Error."): void {
         error_log($logMessage);
         http_response_code(500);
-        // Aquí podrías incluir una vista de error genérica
         echo "<h1>Error</h1><p>$userMessage</p>";
     }
 
-    //NUEVA FUNCIONA PARA PLANTILLAS DE MARKDOWN
-    // Añade este método a src/Controllers/MarkdownController.php
-
-    // Pega este método DENTRO de la clase MarkdownController
-
     public function createFromTemplate(int $templateId): void {
-        // Verificamos que el modelo de plantillas exista. 
-        // Como no lo inicializamos en el constructor de MarkdownController,
-        // lo creamos aquí temporalmente.
         if (!$this->pdo) {
             $this->showErrorPage("No hay conexión a la base de datos para cargar la plantilla.");
             return;
         }
         $templateModel = new \Dales\Markdown2video\Models\TemplateModel($this->pdo);
         
-        // Obtenemos el contenido de la plantilla desde la base de datos
         $templateContent = $templateModel->getTemplateContentById($templateId);
 
         if ($templateContent === null) {
-            // Si la plantilla no existe o está inactiva, redirigir al dashboard
             header('Location: ' . BASE_URL . '/dashboard');
             exit;
         }
 
-        // Preparamos las variables necesarias para la vista del editor
         $base_url = BASE_URL;
         $pageTitle = "Editor - Desde Plantilla";
         
-        // Generamos los tokens CSRF
         if (empty($_SESSION['csrf_token_generate_pdf'])) { 
             $_SESSION['csrf_token_generate_pdf'] = bin2hex(random_bytes(32)); 
         }
@@ -512,10 +475,8 @@ class MarkdownController {
         }
         $csrf_token_image_action = $_SESSION['csrf_token_image_action'];
 
-        // Esta es la variable que pasará el contenido de la plantilla a la vista
         $initialContent = $templateContent;
 
-        // Cargamos la vista del editor, pasándole todas las variables
         $viewPath = VIEWS_PATH . 'base_markdown.php';
         if (file_exists($viewPath)) {
             require_once $viewPath;
