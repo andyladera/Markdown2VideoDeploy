@@ -2,7 +2,7 @@ default:
   suites:
     default:
       paths:
-        - "%paths.base%/features/"
+        - "%paths.base%/features/" # ¡Nota las comillas simples!
       contexts:
         - FeatureContext
         - UserContext
@@ -12,59 +12,20 @@ default:
       output_path: "%paths.base%/reports/junit"
     html:
       output_path: "%paths.base%/reports/html"
-
-profiles:
-  # Perfil para CI (sin video)
-  ci:
-    suites:
-      default:
-        paths:
-          - "%paths.base%/features/"
-        contexts:
-          - FeatureContext
-          - UserContext
-    formatters:
-      pretty: ~
-      junit:
-        output_path: "%paths.base%/reports/junit"
-      html:
-        output_path: "%paths.base%/reports/html"
-    extensions:
-      emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
-        name: html
-        renderer: Twig,Behat2
-        file_name: index
-        print_args: true
-        print_outp: true
-
-  # Perfil con grabación de video
-  video:
-    suites:
-      default:
-        paths:
-          - "%paths.base%/features/"
-        contexts:
-          - FeatureContext
-          - UserContext
-    formatters:
-      pretty: ~
-      junit:
-        output_path: "%paths.base%/reports/junit"
-      html:
-        output_path: "%paths.base%/reports/html"
-    extensions:
-      Behat\MinkExtension:
-        base_url: "http://tu-app.test"
-        javascript_session: playwright
-        sessions:
-          playwright:
-            playwright:
-              browser: chromium
-              video: on
-              traces_dir: reports/traces
-      emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
-        name: html
-        renderer: Twig,Behat2
-        file_name: index
-        print_args: true
-        print_outp: true
+report:
+  extensions:
+    emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
+      name: html
+      renderer: Twig,Behat2
+      file_name: index
+      print_args: true
+      print_outp: true
+video:
+  extensions:
+    Behat\MinkExtension:
+      base_url: 'http://tu-app.test'
+      javascript_session: playwright
+      playwright:
+        browser: chromium
+        video: on
+        traces_dir: reports/traces
