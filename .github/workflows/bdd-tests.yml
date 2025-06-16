@@ -31,7 +31,7 @@ jobs:
       # Paso 4: Ejecutar pruebas BDD
       - name: Run Behat tests
         run: |
-          Markdown2Video/vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html --profile=ci
+          Markdown2Video/vendor/bin/behat --profile=ci --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
 
       # Paso 5: Guardar reportes como artefacto
       - name: Upload test reports artifact
