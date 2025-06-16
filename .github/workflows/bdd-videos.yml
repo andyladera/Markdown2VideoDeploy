@@ -30,9 +30,11 @@ jobs:
         run: mkdir -p reports/videos
 
       - name: Install Behat dependencies
+        working-directory: Markdown2Video
         run: composer install --prefer-dist --no-progress
 
       - name: Install Playwright
+        working-directory: Markdown2Video
         run: |
           npm init -y
           npm install @playwright/test --save-dev
