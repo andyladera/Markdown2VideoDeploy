@@ -11,7 +11,7 @@ default:
     junit:
       output_path: "%paths.base%/reports/junit"
     html:
-      output_path: "%paths.base%/reports/html"
+      output_path: "%paths.base%/reports/html/index.html"
 report:
   extensions:
     emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
