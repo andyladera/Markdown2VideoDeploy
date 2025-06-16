@@ -416,7 +416,7 @@ HTML;
         try {
             // 3. Usar Browsershot para generar el PDF
             $pdfOutput = Browsershot::html($html)
-                ->setChromeExecutablePath('/opt/google/chrome/google-chrome')
+                ->setChromeExecutablePath('/usr/bin/google-chrome-stable')
                 ->waitUntilNetworkIdle() // Espera a que Marp JS termine de renderizar
                 ->pdf();
 
