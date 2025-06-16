@@ -63,7 +63,7 @@ jobs:
       - name: Run tests with video recording
         run: |
           mkdir -p reports/videos
-          Markdown2Video/vendor/bin/behat --profile=report --format=pretty --format=html --out=reports/html
+          Markdown2Video/vendor/bin/behat --profile=report --format=pretty --format=html --out=reports/html/index.html
 
       - name: Upload videos and reports
         uses: actions/upload-artifact@v4
