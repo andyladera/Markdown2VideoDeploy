@@ -33,7 +33,7 @@ jobs:
         run: |
           Markdown2Video/vendor/bin/behat --format=pretty --format=junit --out=reports/junit --format=html --out=reports/html
 
-      # Paso 5: Guardar reportes como artefacto
+      # Paso 5: Guardarreportes como artefacto
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v4
         with:
