@@ -13,23 +13,23 @@ default:
     html:
       output_path: "%paths.base%/reports/html"
 
-  profiles:
-  # Perfil estándar (sin video)
-    ci:  
-      extensions:
-        emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
-          name: html
-          renderer: Twig,Behat2
-          file_name: index
-          print_args: true
-          print_outp: true
-  # Perfil con grabación de video
-    video:
-      extensions:
-        Behat\MinkExtension:
-          base_url: 'http://tu-app.test'
-          javascript_session: playwright
-          playwright:
-            browser: chromium
-            video: on
-            traces_dir: reports/traces
+profiles:
+# Perfil estándar (sin video)
+  ci:  
+    extensions:
+      emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
+        name: html
+        renderer: Twig,Behat2
+        file_name: index
+        print_args: true
+        print_outp: true
+# Perfil con grabación de video
+  video:
+    extensions:
+      Behat\MinkExtension:
+        base_url: 'http://tu-app.test'
+        javascript_session: playwright
+        playwright:
+          browser: chromium
+          video: on
+          traces_dir: reports/traces
