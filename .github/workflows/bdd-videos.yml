@@ -22,7 +22,7 @@ jobs:
         with:
           php-version: '8.2'
           extensions: mbstring, dom, xml
-          
+
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libgbm-dev libnss3 libatk1.0-0
 
@@ -30,9 +30,11 @@ jobs:
         run: mkdir -p reports/videos
 
       - name: Install Behat dependencies
+        working-directory: Markdown2Video
         run: composer install --prefer-dist --no-progress
 
       - name: Install Playwright
+        working-directory: Markdown2Video
         run: |
           npm init -y
           npm install @playwright/test --save-dev
@@ -61,10 +63,10 @@ jobs:
       - name: Run tests with video recording
         run: |
           mkdir -p reports/videos
-          vendor/bin/behat --format=pretty --format=html --out=reports/html
+          Markdown2Video/vendor/bin/behat --profile=video --format=pretty --format=html --out=reports/html
 
       - name: Upload videos and reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bdd-videos-report
           path: |

@@ -11,7 +11,8 @@ default:
     junit:
       output_path: "%paths.base%/reports/junit"
     html:
-      output_path: "%paths.base%/reports/html"
+      output_path: "%paths.base%/reports/html/index.html"
+report:
   extensions:
     emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
       name: html
@@ -19,6 +20,8 @@ default:
       file_name: index
       print_args: true
       print_outp: true
+video:
+  extensions:
     Behat\MinkExtension:
       base_url: 'http://tu-app.test'
       javascript_session: playwright

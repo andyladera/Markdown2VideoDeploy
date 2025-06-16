@@ -2,7 +2,6 @@
 
 use Behat\Behat\Context\Context;
 use Dales\Markdown2video\Models\UserModel;
-use PDO;
 
 class UserContext implements Context
 {
