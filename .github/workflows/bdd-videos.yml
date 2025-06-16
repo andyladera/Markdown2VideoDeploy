@@ -22,7 +22,7 @@ jobs:
         with:
           php-version: '8.2'
           extensions: mbstring, dom, xml
-          
+
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libgbm-dev libnss3 libatk1.0-0
 
@@ -64,7 +64,7 @@ jobs:
           vendor/bin/behat --format=pretty --format=html --out=reports/html
 
       - name: Upload videos and reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bdd-videos-report
           path: |
