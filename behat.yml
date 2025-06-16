@@ -1,0 +1,21 @@
+default:
+  suites:
+    default:
+      paths:
+        - "%paths.base%/features/" # ¡Nota las comillas simples!
+      contexts:
+        - FeatureContext
+        - UserContext
+  formatters:
+    pretty: ~
+    junit:
+      output_path: "%paths.base%/reports/junit"
+    html:
+      output_path: "%paths.base%/reports/html"
+  extensions:
+    emuse\BehatHTMLFormatter\BehatHTMLFormatterExtension:
+      name: html
+      renderer: Twig,Behat2
+      file_name: index
+      print_args: true
+      print_outp: true
