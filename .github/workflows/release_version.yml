@@ -71,7 +71,7 @@ jobs:
         tag: ${{ env.NAME }}
         name: "Release ${{ env.NAME }}"
         artifact: release/*.zip
-        token: ${{ secrets.GH_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Set up AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
