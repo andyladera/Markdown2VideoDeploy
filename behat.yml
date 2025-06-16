@@ -19,3 +19,10 @@ default:
       file_name: index
       print_args: true
       print_outp: true
+    Behat\MinkExtension:
+      base_url: 'http://tu-app.test'
+      javascript_session: playwright
+      playwright:
+        browser: chromium
+        video: on
+        traces_dir: reports/traces
