@@ -31,7 +31,7 @@ $success_message = $success_message ?? null;
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
 
                 <div class="input-group">
-                    <h2>INICIAR SESIÓN - automatic deployment</h2>
+                    <h2>INICIAR SESIÓN - automatic deployment1</h2>
                     <label for="email">Correo Electrónico</label>
                     <input type="email" id="email" name="email" placeholder="tu@correo.com" required autofocus>
                 </div>
