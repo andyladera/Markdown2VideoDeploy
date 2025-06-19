@@ -1,0 +1,60 @@
+name: Deploy and Cost Estimation
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+          
+      - name: Terraform Init
+        run: terraform init
+        working-directory: infra
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        working-directory: infra
+
+      - name: Install Infracost
+        run: |
+          curl -s https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          infracost --version
+    
+      - name: Set Infracost API Key
+        run: echo "INFRACOST_API_KEY=${{ secrets.INFRACOST_API_KEY }}" >> $GITHUB_ENV
+
+      - name: Generate Infracost cost estimate
+        run: |
+          infracost breakdown --path infra --format table --out-file infracost-report.md
+  
+      - name: Show Infracost Report in Summary
+        run: |
+          echo "## Infracost Cost Estimate" >> $GITHUB_STEP_SUMMARY
+          cat infracost-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
+        working-directory: infra

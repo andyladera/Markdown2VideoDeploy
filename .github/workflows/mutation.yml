@@ -1,0 +1,96 @@
+name: Mutation Testing and Deployment
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  infection:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout del código
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: xdebug
+
+      - name: 🔓 Permitir plugin infection/extension-installer
+        working-directory: Markdown2Video
+        run: composer config --no-plugins allow-plugins.infection/extension-installer true
+
+      - name: 📦 Instalar dependencias (PHPUnit + Infection)
+        working-directory: Markdown2Video
+        run: |
+          composer install --prefer-dist --no-progress
+          if [ ! -f vendor/bin/phpunit ]; then
+            composer require --dev phpunit/phpunit
+          fi
+          if [ ! -f vendor/bin/infection ]; then
+            composer require --dev infection/infection
+          fi
+            chmod +x vendor/bin/phpunit  # 👈 Agrega esta línea
+
+      - name: 🧪 Ejecutar pruebas con cobertura
+        run: |
+          mkdir -p coverage
+          XDEBUG_MODE=coverage Markdown2Video/vendor/bin/phpunit \
+          --coverage-xml=coverage/clover.xml \
+          --coverage-html=coverage/html \
+          --log-junit=coverage/junit.xml \
+          tests
+
+          # Renombrar para Infection (si es necesario)
+          # cp coverage/junit.xml coverage/index.xml || echo "No se pudo copiar junit.xml"
+          ls -la coverage/
+          
+      - name: 🧬 Ejecutar Infection (pruebas de mutación)
+        run: |
+          # Verificar que coverage existe
+          ls -la coverage/
+
+          # Crear carpeta
+          mkdir docs/mutation
+        
+          # Asegurar permisos de ejecución
+          chmod +x Markdown2Video/vendor/bin/phpunit
+
+          Markdown2Video/vendor/bin/infection \
+          --coverage=coverage \
+          --logger-html=docs/mutation/infection-report.html \
+          --initial-tests-php-options="-d xdebug.mode=coverage" \
+          --verbose
+
+      - name: 📤 Subir reporte de mutación como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: docs/mutation
+
+  deploy-ghpages:
+    needs: infection
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Descargar artefacto del reporte
+        uses: actions/download-artifact@v4
+        with:
+          name: mutation-report
+          path: docs/mutation
+
+      - name: 🚀 Publicar en GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: docs/mutation
+          destination_dir: mutation
+          keep_files: true

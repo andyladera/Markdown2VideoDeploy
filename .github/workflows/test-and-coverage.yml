@@ -1,0 +1,36 @@
+name: PHPUnit Coverage Report
+
+on:
+  push:
+    branches: [main]  # o la rama principal de tu proyecto
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v3
+
+      - name: Instalar dependencias necesarias
+        run: |
+          sudo apt update
+          sudo apt install -y php php-xml php-mbstring php-pdo php-sqlite3
+
+      - name: Instalar PHPUnit manualmente
+        run: |
+          wget https://phar.phpunit.de/phpunit-10.phar
+          chmod +x phpunit-10.phar
+          sudo mv phpunit-10.phar /usr/local/bin/phpunit
+
+      - name: Crear carpeta para el reporte
+        run: mkdir -p docs/coverage
+
+      - name: Ejecutar pruebas con cobertura
+        run: XDEBUG_MODE=coverage phpunit --coverage-html docs/coverage tests
+
+      - name: Subir reporte a GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs
